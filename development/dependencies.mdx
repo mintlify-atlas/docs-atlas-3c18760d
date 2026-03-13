@@ -1,0 +1,338 @@
+---
+title: Dependencies
+description: Complete guide to all dependencies used in the Flutter Billing App
+---
+
+This page documents all the dependencies in the Flutter Billing App, extracted from `pubspec.yaml`, organized by category with explanations of their purpose.
+
+## State Management & Dependency Injection
+
+<Accordion title="flutter_bloc ^8.1.5">
+
+Flutter widgets that make it easy to implement the BLoC (Business Logic Component) design pattern.
+
+**Usage in the app:**
+- State management for all features (Product, Shop, Billing, Printer)
+- Separates business logic from UI
+- Examples: `ProductBloc`, `ShopBloc`, `BillingBloc`, `PrinterBloc`
+
+**Key files:**
+- `lib/features/*/presentation/bloc/` directories contain all BLoC implementations
+
+</Accordion>
+
+<Accordion title="bloc ^8.1.4">
+
+Core BLoC package (dependency of flutter_bloc). Provides the base BLoC classes and stream transformers.
+
+**Usage in the app:**
+- Foundation for flutter_bloc
+- Event handling and state emission logic
+
+</Accordion>
+
+<Accordion title="get_it ^7.6.7">
+
+Simple service locator for dependency injection.
+
+**Usage in the app:**
+- Centralized dependency injection container
+- Registers repositories, use cases, and BLoCs
+- Configured in `lib/core/service_locator.dart`
+
+**Example registration:**
+```dart
+sl.registerFactory(() => ProductBloc(
+  getProductsUseCase: sl(),
+  addProductUseCase: sl(),
+));
+```
+
+</Accordion>
+
+<Accordion title="equatable ^2.0.5">
+
+Simplifies equality comparisons for Dart classes.
+
+**Usage in the app:**
+- BLoC states and events extend Equatable
+- Enables efficient state comparison in BLoC
+- Reduces boilerplate for `==` operator and `hashCode`
+
+</Accordion>
+
+## Functional Programming
+
+<Accordion title="fpdart ^1.1.0">
+
+Functional programming in Dart and Flutter. Provides `Either`, `Option`, and other functional types.
+
+**Usage in the app:**
+- Error handling with `Either<Failure, Result>`
+- All use cases return `Either<Failure, T>` for type-safe error handling
+- Defined in base `UseCase` class: `lib/core/usecase/usecase.dart`
+
+**Example:**
+```dart
+abstract class UseCase<Result, Params> {
+  Future<Either<Failure, Result>> call(Params params);
+}
+```
+
+</Accordion>
+
+## Navigation
+
+<Accordion title="go_router ^14.0.0">
+
+Declarative routing package for Flutter.
+
+**Usage in the app:**
+- Defines all app routes in `lib/config/routes/app_routes.dart`
+- Type-safe navigation
+- Deep linking support for future enhancements
+
+</Accordion>
+
+## Database & Persistence
+
+<Accordion title="hive ^2.2.3">
+
+Lightweight and fast NoSQL database for Flutter.
+
+**Usage in the app:**
+- Primary local database for products, shop details
+- Stores data in type-safe boxes
+- No SQL required - uses type adapters for serialization
+
+**Stored data:**
+- Products (with barcode, price, stock)
+- Shop information
+
+</Accordion>
+
+<Accordion title="hive_flutter ^1.1.0">
+
+Flutter-specific extensions for Hive.
+
+**Usage in the app:**
+- Initializes Hive with Flutter-specific path
+- Provides Flutter integration
+- Configured in `lib/core/data/hive_database.dart`
+
+</Accordion>
+
+## Code Generation
+
+<Accordion title="json_annotation ^4.9.0">
+
+Annotations for json_serializable code generator.
+
+**Usage in the app:**
+- Annotates data models for JSON serialization
+- Used with `@JsonSerializable()` annotation
+- Generates `.g.dart` files with serialization code
+
+</Accordion>
+
+<Accordion title="build_runner ^2.4.8 (dev)">
+
+Code generation tool runner.
+
+**Usage in the app:**
+- Runs code generators (Hive, JSON)
+- Command: `dart run build_runner build --delete-conflicting-outputs`
+- See [Code Generation](/development/code-generation) for details
+
+</Accordion>
+
+<Accordion title="json_serializable ^6.7.1 (dev)">
+
+Generates JSON serialization code.
+
+**Usage in the app:**
+- Generates `fromJson()` and `toJson()` methods
+- Works with json_annotation
+- Creates `.g.dart` files
+
+</Accordion>
+
+<Accordion title="hive_generator ^2.0.1 (dev)">
+
+Generates Hive type adapters.
+
+**Usage in the app:**
+- Generates type adapters for Hive models
+- Annotated with `@HiveType()` and `@HiveField()`
+- Used in `ProductModel`, `ShopModel`
+
+**Example:**
+```dart
+@HiveType(typeId: 0)
+class ProductModel extends Product {
+  @HiveField(0)
+  final String id;
+  // ...
+}
+```
+
+</Accordion>
+
+## UI & Design
+
+<Accordion title="google_fonts ^6.1.0">
+
+Provides Google Fonts for Flutter.
+
+**Usage in the app:**
+- Custom typography in app theme
+- Configured in `lib/core/theme/app_theme.dart`
+
+</Accordion>
+
+<Accordion title="cupertino_icons ^1.0.8">
+
+iOS-style icons.
+
+**Usage in the app:**
+- Default Flutter icon set
+- Used for cross-platform UI consistency
+
+</Accordion>
+
+## Utilities
+
+<Accordion title="intl ^0.19.0">
+
+Internationalization and localization support.
+
+**Usage in the app:**
+- Date and number formatting
+- Currency formatting for prices
+- Locale-specific formatting
+
+</Accordion>
+
+<Accordion title="uuid ^4.5.2">
+
+Generates RFC4122 UUIDs.
+
+**Usage in the app:**
+- Unique IDs for products and transactions
+- Ensures collision-free identifiers
+
+</Accordion>
+
+<Accordion title="vibration ^3.1.8">
+
+Provides haptic feedback.
+
+**Usage in the app:**
+- Tactile feedback on button presses
+- Scanner success/error vibrations
+- Enhances user experience
+
+</Accordion>
+
+<Accordion title="permission_handler ^11.3.1">
+
+Manages runtime permissions.
+
+**Usage in the app:**
+- Camera permission for barcode scanning
+- Bluetooth permission for thermal printer
+- Location permission (Android Bluetooth requirement)
+
+</Accordion>
+
+<Accordion title="app_settings ^7.0.0">
+
+Opens device settings screens.
+
+**Usage in the app:**
+- Directs users to enable permissions
+- Opens Bluetooth settings
+- Improves permission request UX
+
+</Accordion>
+
+## Hardware Integration
+
+<Accordion title="mobile_scanner ^5.1.0">
+
+Barcode and QR code scanning.
+
+**Usage in the app:**
+- Scans product barcodes during billing
+- Used in `lib/features/billing/presentation/pages/scanner_page.dart`
+- Fast product lookup by barcode
+
+</Accordion>
+
+<Accordion title="print_bluetooth_thermal ^1.1.2">
+
+Bluetooth thermal printer integration.
+
+**Usage in the app:**
+- Prints receipts after checkout
+- Connects to Bluetooth thermal printers
+- Helper utilities in `lib/core/utils/printer_helper.dart`
+- Managed by `PrinterBloc`
+
+</Accordion>
+
+<Accordion title="pretty_qr_code ^3.3.0">
+
+Generates styled QR codes.
+
+**Usage in the app:**
+- QR code generation for receipts or product info
+- Customizable QR code styling
+
+</Accordion>
+
+## Development Dependencies
+
+<Accordion title="flutter_test (SDK)">
+
+Flutter testing framework.
+
+**Usage in the app:**
+- Unit tests for use cases
+- Widget tests for UI components
+- Integration tests
+
+</Accordion>
+
+<Accordion title="flutter_lints ^3.0.0">
+
+Recommended Flutter lints.
+
+**Usage in the app:**
+- Code quality and style enforcement
+- Follows Flutter best practices
+- Catches common errors at compile time
+
+</Accordion>
+
+## Dependency Categories Summary
+
+| Category | Packages |
+|----------|----------|
+| **State Management** | flutter_bloc, bloc, get_it, equatable |
+| **Database** | hive, hive_flutter |
+| **Navigation** | go_router |
+| **Functional Programming** | fpdart |
+| **Code Generation** | json_annotation, json_serializable, hive_generator, build_runner |
+| **UI/UX** | google_fonts, cupertino_icons, vibration |
+| **Utilities** | intl, uuid, permission_handler, app_settings |
+| **Hardware** | mobile_scanner, print_bluetooth_thermal, pretty_qr_code |
+| **Testing** | flutter_test, flutter_lints |
+
+## Version Management
+
+**SDK Version:** `>=3.1.0 <4.0.0`
+
+**App Version:** `1.0.0+1`
+
+All dependencies use caret syntax (`^`) to allow compatible updates within the same major version.

@@ -1,0 +1,239 @@
+---
+title: 'Shop Feature'
+description: 'API reference for shop information management'
+icon: 'store'
+---
+
+The Shop feature manages store/shop information such as name, address, contact details, and receipt settings.
+
+## ShopBloc
+
+The main BLoC that manages shop information state.
+
+### Constructor
+
+```dart
+ShopBloc({
+  required GetShopUseCase getShopUseCase,
+  required UpdateShopUseCase updateShopUseCase,
+})
+```
+
+### Events
+
+#### LoadShopEvent
+
+Loads the shop information from storage.
+
+```dart
+class LoadShopEvent extends ShopEvent {}
+```
+
+#### UpdateShopEvent
+
+Updates the shop information.
+
+```dart
+class UpdateShopEvent extends ShopEvent {
+  final Shop shop;
+  const UpdateShopEvent(this.shop);
+}
+```
+
+**Behavior**: Saves the updated shop information and reloads the state.
+
+### States
+
+#### ShopInitial
+
+Initial state before any shop data is loaded.
+
+```dart
+class ShopInitial extends ShopState {}
+```
+
+#### ShopLoading
+
+Indicates a shop operation is in progress.
+
+```dart
+class ShopLoading extends ShopState {}
+```
+
+#### ShopLoaded
+
+Shop information has been successfully loaded.
+
+```dart
+class ShopLoaded extends ShopState {
+  final Shop shop;
+  const ShopLoaded(this.shop);
+}
+```
+
+#### ShopError
+
+An error occurred during a shop operation.
+
+```dart
+class ShopError extends ShopState {
+  final String message;
+  const ShopError(this.message);
+}
+```
+
+#### ShopOperationSuccess
+
+Indicates a shop update operation completed successfully.
+
+```dart
+class ShopOperationSuccess extends ShopState {}
+```
+
+## Shop Entity
+
+Core domain entity representing shop information.
+
+```dart
+class Shop extends Equatable {
+  final String name;
+  final String addressLine1;
+  final String addressLine2;
+  final String phoneNumber;
+  final String upiId;
+  final String footerText;
+
+  const Shop({
+    this.name = '',
+    this.addressLine1 = '',
+    this.addressLine2 = '',
+    this.phoneNumber = '',
+    this.upiId = '',
+    this.footerText = '',
+  });
+
+  Shop copyWith({
+    String? name,
+    String? addressLine1,
+    String? addressLine2,
+    String? phoneNumber,
+    String? upiId,
+    String? footerText,
+  });
+}
+```
+
+**Properties:**
+- `name` - Shop name displayed on receipts
+- `addressLine1` - First line of shop address
+- `addressLine2` - Second line of shop address
+- `phoneNumber` - Shop contact phone number
+- `upiId` - UPI ID for digital payments
+- `footerText` - Custom footer text for receipts (e.g., "Thank you for shopping!")
+
+**Methods:**
+- `copyWith()` - Creates a copy with updated fields
+
+## ShopRepository
+
+Abstract repository interface for shop data operations.
+
+```dart
+abstract class ShopRepository {
+  Future<Either<Failure, Shop>> getShop();
+  Future<Either<Failure, void>> updateShop(Shop shop);
+}
+```
+
+**Methods:**
+- `getShop()` - Retrieves the shop information
+- `updateShop(Shop shop)` - Updates the shop information
+
+## Use Cases
+
+### GetShopUseCase
+
+Retrieves shop information from the repository.
+
+```dart
+class GetShopUseCase implements UseCase<Shop, NoParams> {
+  final ShopRepository repository;
+
+  GetShopUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, Shop>> call(NoParams params);
+}
+```
+
+### UpdateShopUseCase
+
+Updates shop information in the repository.
+
+```dart
+class UpdateShopUseCase implements UseCase<void, Shop> {
+  final ShopRepository repository;
+
+  UpdateShopUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, void>> call(Shop params);
+}
+```
+
+## Usage Example
+
+### Loading Shop Information
+
+```dart
+// Load shop details
+shopBloc.add(LoadShopEvent());
+
+// Listen to state
+BlocBuilder<ShopBloc, ShopState>(
+  builder: (context, state) {
+    if (state is ShopLoaded) {
+      return Text(state.shop.name);
+    }
+    return CircularProgressIndicator();
+  },
+)
+```
+
+### Updating Shop Information
+
+```dart
+final updatedShop = Shop(
+  name: 'My Awesome Store',
+  addressLine1: '123 Main Street',
+  addressLine2: 'Springfield, IL 62701',
+  phoneNumber: '+1-555-0123',
+  upiId: 'mystore@upi',
+  footerText: 'Thank you! Visit again!',
+);
+
+shopBloc.add(UpdateShopEvent(updatedShop));
+```
+
+### Using Shop Data in Receipts
+
+Shop information is typically used when printing receipts:
+
+```dart
+if (state is ShopLoaded) {
+  billingBloc.add(PrintReceiptEvent(
+    shopName: state.shop.name,
+    address1: state.shop.addressLine1,
+    address2: state.shop.addressLine2,
+    phone: state.shop.phoneNumber,
+    footer: state.shop.footerText,
+  ));
+}
+```
+
+## Source Files
+
+- **BLoC**: `lib/features/shop/presentation/bloc/`
+- **Entities**: `lib/features/shop/domain/entities/shop.dart`
+- **Repository**: `lib/features/shop/domain/repositories/shop_repository.dart`
+- **Use Cases**: `lib/features/shop/domain/usecases/shop_usecases.dart`

@@ -1,97 +1,86 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Flutter Billing App"
+description: "A feature-rich offline-first Point of Sale (POS) and billing application built with Flutter for retail checkout operations"
 ---
 
-## Setting up
+<div className="text-center mb-8">
+  <h1 className="text-5xl font-bold mb-4" style={{ color: '#4c4c4c' }}>
+    Modern POS for Retail
+  </h1>
+  <p className="text-xl text-gray-600 mb-6">
+    Offline-first billing and Point of Sale system with barcode scanning, thermal printing, and real-time inventory management
+  </p>
+</div>
 
-Get your documentation site up and running in minutes.
+## Key Features
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Offline-First Architecture" icon="database" href="/architecture/overview">
+    Lightning-fast local database with Hive for operations without internet connectivity
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Barcode Scanning" icon="barcode" href="/features/barcode-scanning">
+    Rapid product entry via camera-based barcode and QR code scanning
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Thermal Printing" icon="print" href="/features/thermal-printing">
+    Direct Bluetooth integration with thermal printers for instant receipt printing
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Product Management" icon="box" href="/features/product-management">
+    Complete CRUD operations for inventory with real-time updates
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Get Started
 
-Everything you need to create world-class documentation.
+<CardGroup cols={3}>
+  <Card title="Introduction" icon="book-open" href="/introduction">
+    Learn about the app's capabilities and architecture
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up your development environment
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Build and run your first POS checkout
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Architecture Highlights
 
-## Need inspiration?
+Built with **Clean Architecture** and industry best practices:
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+- **State Management**: BLoC pattern with `flutter_bloc` for predictable state updates
+- **Dependency Injection**: `get_it` for decoupled, testable components
+- **Functional Programming**: `fpdart` for type-safe error handling with `Either<Failure, T>`
+- **Feature-First Structure**: Modular codebase organized by business domain
+
+<CardGroup cols={2}>
+  <Card title="Clean Architecture" icon="layer-group" href="/architecture/clean-architecture">
+    Learn about the domain-driven design approach
+  </Card>
+  <Card title="State Management" icon="diagram-project" href="/architecture/state-management">
+    Explore the BLoC pattern implementation
+  </Card>
+</CardGroup>
+
+## Core Features
+
+<CardGroup cols={2}>
+  <Card title="Billing & Checkout" icon="cash-register" href="/features/billing-checkout">
+    Real-time cart management with automatic calculations
+  </Card>
+  <Card title="Shop Settings" icon="gear" href="/features/shop-settings">
+    Customize shop details and receipt configuration
+  </Card>
+</CardGroup>
+
+## API Reference
+
+Explore the complete API documentation for integrating and extending the app.
+
+<CardGroup cols={2}>
+  <Card title="Core APIs" icon="code" href="/api/core/service-locator">
+    Service locator, theme, and database initialization
+  </Card>
+  <Card title="Feature APIs" icon="puzzle-piece" href="/api/features/product">
+    Product, billing, shop, and printer modules
+  </Card>
+</CardGroup>

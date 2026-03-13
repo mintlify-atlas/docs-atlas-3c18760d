@@ -1,0 +1,144 @@
+---
+title: Introduction
+description: Overview of the Flutter Billing App - A feature-rich offline-first POS and billing system
+---
+
+# Flutter Billing App
+
+A feature-rich, high-performance **offline-first** billing and Point of Sale (POS) application built with Flutter. Designed for seamless retail checkout operations featuring barcode scanning, thermal Bluetooth printing, and robust local data persistence.
+
+## What is Flutter Billing App?
+
+Flutter Billing App is a complete offline POS system for small to medium-sized retail shops. It streamlines the checkout process, catalog management, and receipt generation - all running entirely on-device with no internet connection required.
+
+<Note>
+  This application is built using **Clean Architecture** principles with feature-driven design, ensuring scalability, separation of concerns, and robust testability.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Product Management" icon="box">
+    Complete CRUD operations for inventory items with barcode/QR code support. Add, update, and delete products with ease.
+  </Card>
+  
+  <Card title="Smart Checkout System" icon="cart-shopping">
+    Rapid cart building via camera-based barcode scanning or manual entry with robust order calculation functionality.
+  </Card>
+  
+  <Card title="Bluetooth Thermal Printing" icon="print">
+    Direct integration with thermal printers to instantly output physical receipts with customizable shop details.
+  </Card>
+  
+  <Card title="Offline-First Architecture" icon="database">
+    Powered by Hive for lightning-fast localized NoSQL data storage. No active internet connectivity required.
+  </Card>
+</CardGroup>
+
+## Core Capabilities
+
+### Product Management System
+
+Manage your complete inventory with support for:
+- Product CRUD operations (Create, Read, Update, Delete)
+- Barcode and QR code scanning integration
+- Stock level tracking
+- Price management
+- Unique product identification
+
+### Smart Checkout System
+
+Streamline your billing process with:
+- Camera-based barcode scanning using `mobile_scanner`
+- Manual product entry for items without barcodes
+- Real-time cart total calculation
+- Tax computation support
+- Order finalization and receipt generation
+
+### Bluetooth Thermal Printing
+
+Generate professional receipts with:
+- Direct Bluetooth connection to thermal POS printers
+- Customizable shop header (name, address, contact details)
+- Itemized product listing with prices
+- Tax and total calculations
+- Instant printing via `print_bluetooth_thermal`
+
+### Offline-First Architecture
+
+Operate confidently without internet:
+- **Hive** NoSQL local database for all data persistence
+- Lightning-fast data access and queries
+- No network dependency for core operations
+- Perfect for exhibitions, markets, and areas with poor connectivity
+
+## Use Cases
+
+### Retail Checkout
+
+A cashier launches the app, navigates to the checkout page, and uses the device camera to instantly scan product barcodes. The products are added to the cart, the total is calculated including taxes, and a receipt is finalized.
+
+### Physical Receipt Generation
+
+After checkout confirmation, the app triggers a connected external Bluetooth thermal POS printer to instantly print an itemized paper receipt with the shop's header information.
+
+### Inventory Management
+
+A manager opens the Product feature to add new stock to the local database, taking a picture of the barcode to bind the SKU for future lightning-fast checkouts.
+
+### No-Connection Operation
+
+The business operates a stall at an exhibition with poor networking. The app functions entirely via its embedded Hive local database and Bluetooth, completely undisturbed by network drops.
+
+## Tech Stack
+
+Built leveraging industry-standard architectural principles:
+
+| Category | Technology |
+|----------|------------|
+| **Framework** | Flutter (SDK >=3.1.0) |
+| **State Management** | flutter_bloc |
+| **Dependency Injection** | get_it |
+| **Routing** | go_router |
+| **Local Database** | hive & hive_flutter |
+| **Data Modeling** | json_serializable, equatable |
+| **Functional Programming** | fpdart |
+| **Barcode Scanning** | mobile_scanner |
+| **Thermal Printing** | print_bluetooth_thermal |
+
+## Architecture Overview
+
+The application follows **Feature-First Clean Architecture** with strict separation of concerns:
+
+```text
+lib/
+├── core/                       # Core application utilities
+│   ├── data/                   # Global data sources (Hive initialization)
+│   ├── error/                  # Failure/Exception models (fpdart compatible)
+│   ├── theme/                  # UI styling and typography
+│   ├── usecase/                # Base UseCase contracts
+│   ├── utils/                  # Helpers (PrinterHelper, formatters)
+│   └── widgets/                # Reusable UI widgets
+│
+└── features/                   # Independent feature modules
+    ├── billing/                # POS operations: Cart, Checkout, Invoices
+    ├── product/                # Inventory: Adding, Listing, Scanning
+    ├── settings/               # Printer connections, App settings
+    └── shop/                   # Shop details configuration
+```
+
+<Warning>
+  Each feature is subdivided into Clean Architecture layers: `data`, `domain`, and `presentation`. Maintain strict boundaries between these layers when extending the application.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up your development environment and install dependencies
+  </Card>
+  
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get the app running in minutes
+  </Card>
+</CardGroup>

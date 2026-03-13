@@ -1,0 +1,364 @@
+---
+title: Shop Settings
+description: Configure shop information and customize receipt details
+icon: 'store'
+---
+
+## Overview
+
+The Shop Settings feature allows you to configure your shop's information, including name, address, contact details, UPI payment ID, and receipt footer. This information is used throughout the app, especially for receipt generation and UPI QR codes.
+
+## Shop Entity
+
+The `Shop` entity stores all shop-related information:
+
+```dart lib/features/shop/domain/entities/shop.dart
+class Shop extends Equatable {
+  final String name;
+  final String addressLine1;
+  final String addressLine2;
+  final String phoneNumber;
+  final String upiId;
+  final String footerText;
+
+  const Shop({
+    this.name = '',
+    this.addressLine1 = '',
+    this.addressLine2 = '',
+    this.phoneNumber = '',
+    this.upiId = '',
+    this.footerText = '',
+  });
+
+  Shop copyWith({
+    String? name,
+    String? addressLine1,
+    String? addressLine2,
+    String? phoneNumber,
+    String? upiId,
+    String? footerText,
+  }) {
+    return Shop(
+      name: name ?? this.name,
+      addressLine1: addressLine1 ?? this.addressLine1,
+      addressLine2: addressLine2 ?? this.addressLine2,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      upiId: upiId ?? this.upiId,
+      footerText: footerText ?? this.footerText,
+    );
+  }
+
+  @override
+  List<Object?> get props =>
+      [name, addressLine1, addressLine2, phoneNumber, upiId, footerText];
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Default Values" icon="circle-check">
+    All fields default to empty strings, making the entity safe to use without initialization
+  </Card>
+  <Card title="Immutable" icon="lock">
+    Uses Equatable and copyWith for immutable updates
+  </Card>
+</CardGroup>
+
+## Field Descriptions
+
+<AccordionGroup>
+  <Accordion title="Shop Name">
+    The name of your business. Used on receipts, UPI QR codes, and throughout the app.
+  </Accordion>
+  
+  <Accordion title="Address Lines">
+    Two address lines for your shop location. Both appear on printed receipts.
+  </Accordion>
+  
+  <Accordion title="Phone Number">
+    Contact number for your shop, displayed on receipts.
+  </Accordion>
+  
+  <Accordion title="UPI ID">
+    Your UPI payment address (e.g., `yourshop@paytm`, `9876543210@ybl`). Used to generate payment QR codes at checkout.
+  </Accordion>
+  
+  <Accordion title="Footer Text">
+    Custom message at the bottom of receipts (e.g., "Thank you for your business!", "Visit again!").
+  </Accordion>
+</AccordionGroup>
+
+## ShopBloc
+
+The `ShopBloc` manages shop settings state:
+
+### Shop Events
+
+```dart lib/features/shop/presentation/bloc/shop_bloc.dart
+class LoadShopEvent extends ShopEvent {}
+
+class UpdateShopEvent extends ShopEvent {
+  final Shop shop;
+  const UpdateShopEvent(this.shop);
+}
+```
+
+### Shop States
+
+```dart lib/features/shop/presentation/bloc/shop_state.dart
+abstract class ShopState extends Equatable {
+  const ShopState();
+}
+
+class ShopInitial extends ShopState {}
+
+class ShopLoading extends ShopState {}
+
+class ShopLoaded extends ShopState {
+  final Shop shop;
+  const ShopLoaded(this.shop);
+}
+
+class ShopError extends ShopState {
+  final String message;
+  const ShopError(this.message);
+}
+
+class ShopOperationSuccess extends ShopState {}
+```
+
+## Event Handlers
+
+### Loading Shop Details
+
+```dart lib/features/shop/presentation/bloc/shop_bloc.dart
+Future<void> _onLoadShop(LoadShopEvent event, Emitter<ShopState> emit) async {
+  emit(ShopLoading());
+  final result = await getShopUseCase(NoParams());
+  result.fold(
+    (failure) => emit(ShopError(failure.message)),
+    (shop) => emit(ShopLoaded(shop)),
+  );
+}
+```
+
+### Updating Shop Details
+
+```dart lib/features/shop/presentation/bloc/shop_bloc.dart
+Future<void> _onUpdateShop(
+    UpdateShopEvent event, Emitter<ShopState> emit) async {
+  emit(ShopLoading());
+  final result = await updateShopUseCase(event.shop);
+  result.fold(
+    (failure) => emit(ShopError(failure.message)),
+    (_) {
+      add(LoadShopEvent()); // Reload shop data
+      emit(ShopOperationSuccess());
+    },
+  );
+}
+```
+
+<Note>
+After a successful update, the bloc automatically reloads shop data to ensure the UI displays the latest information.
+</Note>
+
+## Use Cases
+
+The shop feature follows Clean Architecture with dedicated use cases:
+
+### GetShopUseCase
+
+```dart lib/features/shop/domain/usecases/shop_usecases.dart
+class GetShopUseCase implements UseCase<Shop, NoParams> {
+  final ShopRepository repository;
+
+  GetShopUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, Shop>> call(NoParams params) {
+    return repository.getShop();
+  }
+}
+```
+
+### UpdateShopUseCase
+
+```dart lib/features/shop/domain/usecases/shop_usecases.dart
+class UpdateShopUseCase implements UseCase<void, Shop> {
+  final ShopRepository repository;
+
+  UpdateShopUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, void>> call(Shop params) {
+    return repository.updateShop(params);
+  }
+}
+```
+
+## Usage in Other Features
+
+### Receipt Printing
+
+Shop details are used when printing receipts:
+
+```dart
+if (shopState is ShopLoaded) {
+  context.read<BillingBloc>().add(
+    PrintReceiptEvent(
+      shopName: shopState.shop.name,
+      address1: shopState.shop.addressLine1,
+      address2: shopState.shop.addressLine2,
+      phone: shopState.shop.phoneNumber,
+      footer: shopState.shop.footerText
+    )
+  );
+}
+```
+
+### UPI QR Code Generation
+
+```dart
+if (shopState is ShopLoaded) {
+  String upiId = shopState.shop.upiId;
+  String shopName = shopState.shop.name;
+  
+  PrettyQrView.data(
+    data: 'upi://pay?pa=$upiId&pn=$shopName&am=${total.toStringAsFixed(2)}&cu=INR',
+  );
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="UPI Parameters" icon="qrcode">
+    - `pa`: Payment address (UPI ID)
+    - `pn`: Payee name (shop name)
+    - `am`: Amount
+    - `cu`: Currency (INR)
+  </Card>
+  <Card title="Dynamic Amount" icon="indian-rupee-sign">
+    The QR code automatically includes the current cart total
+  </Card>
+</CardGroup>
+
+## Data Persistence
+
+Shop settings are persisted locally using Hive database, ensuring your configuration survives app restarts.
+
+## Implementation Example
+
+```dart
+// Load shop settings
+context.read<ShopBloc>().add(LoadShopEvent());
+
+// Update shop settings
+final updatedShop = Shop(
+  name: 'My Retail Store',
+  addressLine1: '123 Main Street',
+  addressLine2: 'City, State 12345',
+  phoneNumber: '+91 98765 43210',
+  upiId: 'mystore@paytm',
+  footerText: 'Thank you! Visit again!',
+);
+context.read<ShopBloc>().add(UpdateShopEvent(updatedShop));
+
+// Listen to state changes
+BlocBuilder<ShopBloc, ShopState>(
+  builder: (context, state) {
+    if (state is ShopLoading) {
+      return CircularProgressIndicator();
+    } else if (state is ShopLoaded) {
+      return Text('Shop: ${state.shop.name}');
+    } else if (state is ShopError) {
+      return Text('Error: ${state.message}');
+    }
+    return Container();
+  },
+)
+```
+
+## Form Validation
+
+When building a settings form, consider these validation rules:
+
+<AccordionGroup>
+  <Accordion title="Shop Name">
+    - Required field
+    - Minimum 2 characters
+    - Maximum 50 characters for receipt formatting
+  </Accordion>
+  
+  <Accordion title="Phone Number">
+    - Optional but recommended
+    - Validate format (e.g., Indian: +91 XXXXX XXXXX)
+    - Remove spaces before saving
+  </Accordion>
+  
+  <Accordion title="UPI ID">
+    - Optional but required for UPI QR codes
+    - Validate format: `username@provider`
+    - Common providers: paytm, ybl, okaxis, okhdfcbank
+  </Accordion>
+  
+  <Accordion title="Address Lines">
+    - Keep each line under 32 characters for thermal printer compatibility
+    - Use abbreviations if needed (St., Rd., etc.)
+  </Accordion>
+  
+  <Accordion title="Footer Text">
+    - Maximum 64 characters for thermal printer
+    - Common examples: "Thank you!", "Visit again!", "Follow us @handle"
+  </Accordion>
+</AccordionGroup>
+
+## Receipt Example
+
+Here's how shop settings appear on a printed receipt:
+
+```
+        MY RETAIL STORE
+      123 Main Street
+    City, State 12345
+      +91 98765 43210
+    13-03-2026 10:30 AM
+--------------------------------
+Item            Price   Total
+--------------------------------
+2x Coffee       75.00   150.00
+1x Tea          50.00   50.00
+--------------------------------
+                TOTAL: 200.00
+
+   Thank you! Visit again!
+
+
+
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep It Concise" icon="text-size">
+    Use short, clear text for better receipt formatting
+  </Card>
+  <Card title="Verify UPI ID" icon="check">
+    Test your UPI ID with small transactions before going live
+  </Card>
+  <Card title="Update Regularly" icon="arrows-rotate">
+    Keep phone number and address current for customer reference
+  </Card>
+  <Card title="Branding" icon="palette">
+    Use footer text for branding or promotions
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Thermal Printing" icon="print" href="/features/thermal-printing">
+    Learn how shop settings are used in receipt printing
+  </Card>
+  <Card title="Billing & Checkout" icon="cash-register" href="/features/billing-checkout">
+    See how UPI ID generates payment QR codes
+  </Card>
+</CardGroup>

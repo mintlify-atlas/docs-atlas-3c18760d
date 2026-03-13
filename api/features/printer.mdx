@@ -1,0 +1,356 @@
+---
+title: 'Printer Feature'
+description: 'API reference for Bluetooth thermal printer functionality'
+icon: 'print'
+---
+
+The Printer feature manages Bluetooth thermal printer connectivity and receipt printing operations.
+
+## PrinterBloc
+
+The main BLoC that manages printer connection state and operations.
+
+### Constructor
+
+```dart
+PrinterBloc({
+  required PrinterRepository repository,
+})
+```
+
+### Events
+
+#### InitPrinterEvent
+
+Initializes the printer by loading saved printer information.
+
+```dart
+class InitPrinterEvent extends PrinterEvent {}
+```
+
+#### RefreshPrinterEvent
+
+Scans for paired devices and attempts to auto-connect.
+
+```dart
+class RefreshPrinterEvent extends PrinterEvent {}
+```
+
+**Behavior**: Scans for paired Bluetooth devices, iterates through them, and attempts to connect to the first successful one.
+
+#### ScanPrintersEvent
+
+Scans for available paired Bluetooth printers.
+
+```dart
+class ScanPrintersEvent extends PrinterEvent {}
+```
+
+#### ConnectPrinterEvent
+
+Connects to a specific printer by MAC address.
+
+```dart
+class ConnectPrinterEvent extends PrinterEvent {
+  final String mac;
+  final String name;
+
+  const ConnectPrinterEvent({
+    required this.mac,
+    required this.name,
+  });
+}
+```
+
+**Behavior**: Connects to the printer and saves the connection details for future use.
+
+#### DisconnectPrinterEvent
+
+Disconnects from the current printer.
+
+```dart
+class DisconnectPrinterEvent extends PrinterEvent {}
+```
+
+**Behavior**: Disconnects and clears saved printer data.
+
+#### TestPrintEvent
+
+Prints a test receipt.
+
+```dart
+class TestPrintEvent extends PrinterEvent {
+  final String shopName;
+
+  const TestPrintEvent(this.shopName);
+}
+```
+
+### States
+
+#### PrinterState
+
+Represents the current state of printer operations.
+
+```dart
+class PrinterState extends Equatable {
+  final PrinterStatus status;
+  final String? connectedMac;
+  final String? connectedName;
+  final List<BluetoothInfo> devices;
+  final String? errorMessage;
+
+  const PrinterState({
+    this.status = PrinterStatus.initial,
+    this.connectedMac,
+    this.connectedName,
+    this.devices = const [],
+    this.errorMessage,
+  });
+}
+```
+
+**Properties:**
+- `status` - Current printer operation status
+- `connectedMac` - MAC address of connected printer
+- `connectedName` - Name of connected printer
+- `devices` - List of available Bluetooth devices
+- `errorMessage` - Error message if operation fails
+
+**Status Values:**
+```dart
+enum PrinterStatus {
+  initial,
+  scanning,
+  scanSuccess,
+  scanFailure,
+  connecting,
+  connected,
+  connectionFailure,
+  disconnected,
+  testPrinting
+}
+```
+
+## PrinterRepository
+
+Abstract repository interface for printer operations.
+
+```dart
+abstract class PrinterRepository {
+  Future<List<BluetoothInfo>> scanDevices();
+  Future<bool> connect(String macAddress);
+  Future<bool> disconnect();
+  String? getSavedPrinterMac();
+  String? getSavedPrinterName();
+  Future<void> savePrinterData(String mac, String name);
+  Future<void> clearPrinterData();
+  Future<void> testPrint(String shopName);
+}
+```
+
+**Methods:**
+- `scanDevices()` - Scans for paired Bluetooth devices
+- `connect(String macAddress)` - Connects to printer by MAC address
+- `disconnect()` - Disconnects from current printer
+- `getSavedPrinterMac()` - Gets saved printer MAC address
+- `getSavedPrinterName()` - Gets saved printer name
+- `savePrinterData(String mac, String name)` - Saves printer connection info
+- `clearPrinterData()` - Clears saved printer data
+- `testPrint(String shopName)` - Prints a test receipt
+
+## PrinterHelper
+
+Utility class for direct printer operations and ESC/POS command generation.
+
+### Singleton Instance
+
+```dart
+class PrinterHelper {
+  static final PrinterHelper _instance = PrinterHelper._internal();
+  factory PrinterHelper() => _instance;
+  PrinterHelper._internal();
+
+  bool _isConnected = false;
+  bool get isConnected => _isConnected;
+}
+```
+
+### Methods
+
+#### checkPermission
+
+Requests necessary Bluetooth and location permissions.
+
+```dart
+Future<bool> checkPermission()
+```
+
+**Required Permissions:**
+- Bluetooth
+- Bluetooth Scan (Android 12+)
+- Bluetooth Connect (Android 12+)
+- Location
+
+#### getBondedDevices
+
+Retrieves list of paired Bluetooth devices.
+
+```dart
+Future<List<BluetoothInfo>> getBondedDevices()
+```
+
+#### connect
+
+Connects to a printer by MAC address.
+
+```dart
+Future<bool> connect(String macAddress)
+```
+
+#### disconnect
+
+Disconnects from the current printer.
+
+```dart
+Future<bool> disconnect()
+```
+
+#### printReceipt
+
+Prints a formatted receipt with shop details and items.
+
+```dart
+Future<void> printReceipt({
+  required String shopName,
+  required String address1,
+  required String address2,
+  required String phone,
+  required List<Map<String, dynamic>> items,
+  required double total,
+  required String footer,
+})
+```
+
+**Parameters:**
+- `shopName` - Store name (printed large and centered)
+- `address1` - First address line
+- `address2` - Second address line
+- `phone` - Phone number
+- `items` - List of items with keys: 'name', 'qty', 'price', 'total'
+- `total` - Total amount
+- `footer` - Footer text (e.g., "Thank you!")
+
+**Receipt Format:**
+1. Shop name (centered, bold, large)
+2. Address and phone (centered)
+3. Date and time
+4. Separator line
+5. Item header (Item, Price, Total)
+6. Items list with quantities
+7. Separator line
+8. Total amount (right-aligned, bold)
+9. Footer text (centered)
+
+## EscPos Helper
+
+ESC/POS command constants for thermal printer formatting.
+
+```dart
+class EscPos {
+  static const List<int> init = [0x1B, 0x40];
+  static const List<int> alignCenter = [0x1B, 0x61, 0x01];
+  static const List<int> alignLeft = [0x1B, 0x61, 0x00];
+  static const List<int> alignRight = [0x1B, 0x61, 0x02];
+  static const List<int> boldOn = [0x1B, 0x45, 0x01];
+  static const List<int> boldOff = [0x1B, 0x45, 0x00];
+  static const List<int> textNormal = [0x1D, 0x21, 0x00];
+  static const List<int> textLarge = [0x1D, 0x21, 0x11];
+  static const List<int> lineFeed = [0x0A];
+}
+```
+
+## Usage Example
+
+### Scanning and Connecting
+
+```dart
+// Scan for printers
+printerBloc.add(ScanPrintersEvent());
+
+// Connect to a printer
+printerBloc.add(ConnectPrinterEvent(
+  mac: '00:11:22:33:44:55',
+  name: 'Thermal Printer',
+));
+
+// Disconnect
+printerBloc.add(DisconnectPrinterEvent());
+```
+
+### Auto-Reconnect
+
+```dart
+// Automatically scan and connect to first available device
+printerBloc.add(RefreshPrinterEvent());
+```
+
+### Printing Receipt
+
+Using BillingBloc (recommended):
+
+```dart
+billingBloc.add(PrintReceiptEvent(
+  shopName: 'My Store',
+  address1: '123 Main St',
+  address2: 'City, State',
+  phone: '+1234567890',
+  footer: 'Thank you!',
+));
+```
+
+Using PrinterHelper directly:
+
+```dart
+final printerHelper = PrinterHelper();
+
+await printerHelper.connect('00:11:22:33:44:55');
+
+await printerHelper.printReceipt(
+  shopName: 'My Store',
+  address1: '123 Main St',
+  address2: 'City, State',
+  phone: '+1234567890',
+  items: [
+    {'name': 'Item 1', 'qty': 2, 'price': 10.0, 'total': 20.0},
+    {'name': 'Item 2', 'qty': 1, 'price': 15.0, 'total': 15.0},
+  ],
+  total: 35.0,
+  footer: 'Thank you for shopping!',
+);
+```
+
+### Monitoring Connection State
+
+```dart
+BlocBuilder<PrinterBloc, PrinterState>(
+  builder: (context, state) {
+    switch (state.status) {
+      case PrinterStatus.connected:
+        return Text('Connected to ${state.connectedName}');
+      case PrinterStatus.connecting:
+        return CircularProgressIndicator();
+      case PrinterStatus.connectionFailure:
+        return Text('Error: ${state.errorMessage}');
+      default:
+        return Text('Not connected');
+    }
+  },
+)
+```
+
+## Source Files
+
+- **BLoC**: `lib/features/settings/presentation/bloc/printer_bloc.dart`
+- **Repository**: `lib/features/settings/domain/repositories/printer_repository.dart`
+- **Helper**: `lib/core/utils/printer_helper.dart`

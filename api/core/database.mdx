@@ -1,0 +1,321 @@
+---
+title: 'Hive Database'
+description: 'Local database management using Hive for offline-first data persistence'
+---
+
+## Overview
+
+The `HiveDatabase` class manages local data persistence using [Hive](https://pub.dev/packages/hive), a lightweight and fast NoSQL database for Flutter. It handles initialization, adapter registration, and provides access to typed boxes for products, shop data, and settings.
+
+## Setup
+
+### Initialization
+
+Initialize Hive before accessing any boxes:
+
+```dart
+import 'package:flutter_billing_app/core/data/hive_database.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await HiveDatabase.init();
+  runApp(MyApp());
+}
+```
+
+### init() Method
+
+<ParamField path="init" type="Future<void>">
+  Initializes Hive Flutter, registers adapters, and opens all boxes.
+  
+  ```dart
+  static Future<void> init() async {
+    await Hive.initFlutter();
+
+    // Register Adapters
+    Hive.registerAdapter(ProductModelAdapter());
+    Hive.registerAdapter(ShopModelAdapter());
+
+    // Open Boxes
+    await Hive.openBox<ProductModel>(productBoxName);
+    await Hive.openBox<ShopModel>(shopBoxName);
+    await Hive.openBox(settingsBoxName);
+  }
+  ```
+</ParamField>
+
+## Box Names
+
+Constant identifiers for each Hive box:
+
+<ParamField path="productBoxName" type="String" default="products">
+  Box name for storing product data.
+  
+  ```dart
+  static const String productBoxName = 'products';
+  ```
+</ParamField>
+
+<ParamField path="shopBoxName" type="String" default="shop">
+  Box name for storing shop information.
+  
+  ```dart
+  static const String shopBoxName = 'shop';
+  ```
+</ParamField>
+
+<ParamField path="settingsBoxName" type="String" default="settings">
+  Box name for storing app settings and preferences.
+  
+  ```dart
+  static const String settingsBoxName = 'settings';
+  ```
+</ParamField>
+
+## Box Accessors
+
+### Product Box
+
+<ParamField path="productBox" type="Box<ProductModel>">
+  Typed box for storing and retrieving product models.
+  
+  ```dart
+  static Box<ProductModel> get productBox =>
+      Hive.box<ProductModel>(productBoxName);
+  ```
+</ParamField>
+
+**Usage Example:**
+
+```dart
+// Get the product box
+final box = HiveDatabase.productBox;
+
+// Add a product
+await box.add(productModel);
+
+// Get all products
+final products = box.values.toList();
+
+// Get product by key
+final product = box.get(key);
+
+// Update a product
+await box.put(key, updatedProduct);
+
+// Delete a product
+await box.delete(key);
+```
+
+### Shop Box
+
+<ParamField path="shopBox" type="Box<ShopModel>">
+  Typed box for storing shop information.
+  
+  ```dart
+  static Box<ShopModel> get shopBox => Hive.box<ShopModel>(shopBoxName);
+  ```
+</ParamField>
+
+**Usage Example:**
+
+```dart
+// Get the shop box
+final box = HiveDatabase.shopBox;
+
+// Save shop info
+await box.put('shop_info', shopModel);
+
+// Get shop info
+final shop = box.get('shop_info');
+```
+
+### Settings Box
+
+<ParamField path="settingsBox" type="Box">
+  Generic box for storing simple key-value settings.
+  
+  ```dart
+  static Box get settingsBox => Hive.box(settingsBoxName);
+  ```
+</ParamField>
+
+**Usage Example:**
+
+```dart
+// Get the settings box
+final box = HiveDatabase.settingsBox;
+
+// Save a setting
+await box.put('theme_mode', 'dark');
+await box.put('printer_ip', '192.168.1.100');
+await box.put('tax_rate', 0.18);
+
+// Get a setting
+final themeMode = box.get('theme_mode');
+final printerIp = box.get('printer_ip', defaultValue: '');
+final taxRate = box.get('tax_rate', defaultValue: 0.0);
+
+// Delete a setting
+await box.delete('theme_mode');
+
+// Clear all settings
+await box.clear();
+```
+
+## Adapter Registration
+
+### What are Adapters?
+
+Hive uses type adapters to serialize and deserialize custom objects. Each model that needs to be stored in Hive must have a corresponding adapter.
+
+### Registered Adapters
+
+<ResponseField name="ProductModelAdapter" type="TypeAdapter">
+  Adapter for serializing `ProductModel` objects.
+  
+  ```dart
+  Hive.registerAdapter(ProductModelAdapter());
+  ```
+</ResponseField>
+
+<ResponseField name="ShopModelAdapter" type="TypeAdapter">
+  Adapter for serializing `ShopModel` objects.
+  
+  ```dart
+  Hive.registerAdapter(ShopModelAdapter());
+  ```
+</ResponseField>
+
+### Creating Custom Adapters
+
+Adapters are typically generated using the `hive_generator` package:
+
+```dart
+import 'package:hive/hive.dart';
+
+part 'product_model.g.dart';
+
+@HiveType(typeId: 0)
+class ProductModel {
+  @HiveField(0)
+  final String id;
+  
+  @HiveField(1)
+  final String name;
+  
+  @HiveField(2)
+  final double price;
+  
+  // ... constructor and methods
+}
+```
+
+## Data Storage Location
+
+### Local Storage
+
+Hive stores data locally on the device:
+
+- **Android**: `/data/data/<package>/app_flutter/`
+- **iOS**: `<Application Documents Directory>/`
+- **Web**: IndexedDB
+- **Desktop**: Application documents directory
+
+### Offline-First
+
+All data is stored locally, enabling:
+
+- Instant access without network requests
+- Offline functionality
+- Fast read/write operations
+- Automatic persistence
+
+## Common Operations
+
+### CRUD Operations
+
+```dart
+// CREATE
+await HiveDatabase.productBox.add(newProduct);
+
+// READ
+final product = HiveDatabase.productBox.get(key);
+final allProducts = HiveDatabase.productBox.values.toList();
+
+// UPDATE
+await HiveDatabase.productBox.put(key, updatedProduct);
+
+// DELETE
+await HiveDatabase.productBox.delete(key);
+```
+
+### Querying Data
+
+```dart
+// Filter products by price
+final expensiveProducts = HiveDatabase.productBox.values
+    .where((product) => product.price > 100)
+    .toList();
+
+// Search by name
+final searchResults = HiveDatabase.productBox.values
+    .where((product) => product.name.contains(query))
+    .toList();
+
+// Sort products
+final sortedProducts = HiveDatabase.productBox.values
+    .toList()
+    ..sort((a, b) => a.name.compareTo(b.name));
+```
+
+### Watching for Changes
+
+```dart
+// Listen to box changes
+HiveDatabase.productBox.watch().listen((event) {
+  print('Box changed: ${event.key}');
+  if (event.deleted) {
+    print('Item deleted');
+  } else {
+    print('Item added/updated: ${event.value}');
+  }
+});
+```
+
+### Clearing Data
+
+```dart
+// Clear all products
+await HiveDatabase.productBox.clear();
+
+// Clear all settings
+await HiveDatabase.settingsBox.clear();
+
+// Close boxes (usually on app shutdown)
+await HiveDatabase.productBox.close();
+```
+
+## Performance
+
+### Optimization Tips
+
+- **Lazy boxes**: Use `Hive.openLazyBox()` for large datasets to load values on demand
+- **Compact**: Call `box.compact()` periodically to optimize storage
+- **Batch operations**: Use `putAll()` and `deleteAll()` for multiple operations
+
+```dart
+// Batch insert
+await HiveDatabase.productBox.putAll({
+  'key1': product1,
+  'key2': product2,
+  'key3': product3,
+});
+
+// Compact box
+await HiveDatabase.productBox.compact();
+```
+
+## Source Code
+
+Location: `lib/core/data/hive_database.dart`

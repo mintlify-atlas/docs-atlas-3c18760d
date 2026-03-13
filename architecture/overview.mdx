@@ -1,0 +1,144 @@
+---
+title: Architecture Overview
+description: High-level architecture and tech stack of the Flutter Billing App
+---
+
+The Flutter Billing App is built using modern Flutter best practices with a focus on maintainability, scalability, and testability.
+
+## Tech Stack
+
+The application uses the following core technologies:
+
+### State Management & Architecture
+- **flutter_bloc (^8.1.5)** - State management using the BLoC pattern
+- **get_it (^7.6.7)** - Dependency injection container
+- **equatable (^2.0.5)** - Value equality for Dart objects
+
+### Functional Programming
+- **fpdart (^1.1.0)** - Functional programming utilities, used for `Either` type to handle errors
+
+### Local Storage
+- **hive (^2.2.3)** - Lightweight and fast NoSQL database
+- **hive_flutter (^1.1.0)** - Hive integration for Flutter
+
+### Code Generation
+- **json_annotation (^4.9.0)** - Annotations for JSON serialization
+- **json_serializable (^6.7.1)** - Code generator for JSON serialization
+- **hive_generator (^2.0.1)** - Code generator for Hive type adapters
+- **build_runner (^2.4.8)** - Build system for code generation
+
+### Navigation
+- **go_router (^14.0.0)** - Declarative routing solution
+
+### UI & Utilities
+- **google_fonts (^6.1.0)** - Google Fonts integration
+- **intl (^0.19.0)** - Internationalization and formatting
+- **vibration (^3.1.8)** - Device vibration for feedback
+
+### Hardware Integration
+- **mobile_scanner (^5.1.0)** - Barcode scanning
+- **print_bluetooth_thermal (^1.1.2)** - Bluetooth thermal printer support
+- **pretty_qr_code (^3.3.0)** - QR code generation
+- **permission_handler (^11.3.1)** - Runtime permissions
+
+## Project Structure
+
+The app follows a feature-first architecture, organizing code by features rather than layers:
+
+```
+lib/
+├── config/              # App configuration
+│   └── routes/          # Route definitions
+├── core/                # Shared utilities and infrastructure
+│   ├── data/           # Database initialization
+│   ├── error/          # Error handling
+│   ├── theme/          # App theme
+│   ├── usecase/        # UseCase base class
+│   ├── utils/          # Utilities
+│   └── widgets/        # Shared widgets
+├── features/            # Feature modules
+│   ├── billing/        # Billing & cart functionality
+│   ├── product/        # Product management
+│   ├── settings/       # App settings & printer
+│   └── shop/           # Shop information
+└── main.dart           # App entry point
+```
+
+Each feature follows Clean Architecture principles with clear separation of concerns. See the [Clean Architecture](/architecture/clean-architecture) page for details.
+
+## Feature-First Organization
+
+The app is organized around features, where each feature is a self-contained module with its own:
+
+- **Domain Layer** - Business logic and entities
+- **Data Layer** - Data sources and repositories
+- **Presentation Layer** - UI and state management
+
+Current features include:
+
+### Product Feature
+Manages product catalog with barcode support. Allows adding, editing, and deleting products.
+
+**Location**: `lib/features/product/`
+
+### Billing Feature
+Handles the point-of-sale functionality including cart management, barcode scanning, and receipt printing.
+
+**Location**: `lib/features/billing/`
+
+### Shop Feature
+Manages shop information (name, address, phone) displayed on receipts.
+
+**Location**: `lib/features/shop/`
+
+### Settings Feature
+Handles app settings and Bluetooth thermal printer configuration.
+
+**Location**: `lib/features/settings/`
+
+## Architecture Principles
+
+### 1. Clean Architecture
+The app implements Clean Architecture with clear boundaries between layers. Domain logic is independent of frameworks and UI.
+
+### 2. Dependency Inversion
+Dependencies point inward toward the domain layer. Repositories are defined as interfaces in the domain layer and implemented in the data layer.
+
+### 3. Single Responsibility
+Each class and module has a single, well-defined responsibility:
+- **Entities** represent business objects
+- **UseCases** encapsulate business logic
+- **Repositories** abstract data sources
+- **BLoCs** manage UI state
+
+### 4. Functional Error Handling
+Errors are handled functionally using the `Either` type from fpdart:
+
+```dart
+Future<Either<Failure, List<Product>>> getProducts();
+```
+
+This approach makes error handling explicit and type-safe.
+
+## Initialization Flow
+
+The app initialization in `lib/main.dart:13-18` follows this sequence:
+
+1. **Hive Database** - Initialize and open Hive boxes
+2. **Dependency Injection** - Register services with GetIt
+3. **BLoC Providers** - Create and provide BLoCs to the widget tree
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await HiveDatabase.init();
+  await di.init();
+  runApp(const MyApp());
+}
+```
+
+## Related Documentation
+
+- [Clean Architecture](/architecture/clean-architecture) - Detailed layer structure
+- [State Management](/architecture/state-management) - BLoC pattern implementation
+- [Data Layer](/architecture/data-layer) - Hive database and repositories

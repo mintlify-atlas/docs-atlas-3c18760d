@@ -1,0 +1,290 @@
+---
+title: 'App Theme'
+description: 'Theme configuration including colors, typography, and Material Design styles'
+---
+
+## Overview
+
+The `AppTheme` class provides centralized theme configuration for the Flutter Billing App using Material 3 design with IBM Plex Sans font family from Google Fonts.
+
+## Usage
+
+### Apply Theme to App
+
+```dart
+import 'package:flutter_billing_app/core/theme/app_theme.dart';
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Billing App',
+      theme: AppTheme.lightTheme,
+      home: HomeScreen(),
+    );
+  }
+}
+```
+
+## Color Palette
+
+### Primary Colors
+
+<ParamField path="primaryColor" type="Color" default="0xFF6C63FF">
+  Main brand color used for primary actions and highlights.
+  
+  ```dart
+  static const Color primaryColor = Color(0xFF6C63FF);
+  ```
+</ParamField>
+
+<ParamField path="secondaryColor" type="Color" default="0xFF03DAC6">
+  Accent color for secondary actions and elements.
+  
+  ```dart
+  static const Color secondaryColor = Color(0xFF03DAC6);
+  ```
+</ParamField>
+
+### Background Colors
+
+<ParamField path="backgroundColor" type="Color" default="0xFFF2F2F7">
+  App-wide background color for screens.
+  
+  ```dart
+  static const Color backgroundColor = Color(0xFFF2F2F7);
+  ```
+</ParamField>
+
+<ParamField path="surfaceColor" type="Color" default="Colors.white">
+  Surface color for cards, sheets, and elevated components.
+  
+  ```dart
+  static const Color surfaceColor = Colors.white;
+  ```
+</ParamField>
+
+### Status Colors
+
+<ParamField path="errorColor" type="Color" default="0xFFB00020">
+  Error and destructive action color.
+  
+  ```dart
+  static const Color errorColor = Color(0xFFB00020);
+  ```
+</ParamField>
+
+## Typography
+
+### Text Theme
+
+<ParamField path="textTheme" type="TextTheme">
+  IBM Plex Sans text theme with custom styling.
+  
+  ```dart
+  static final TextTheme textTheme = GoogleFonts.ibmPlexSansTextTheme().copyWith(
+    bodyLarge: GoogleFonts.ibmPlexSans(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: Colors.black,
+    ),
+  );
+  ```
+</ParamField>
+
+### Using Custom Text Styles
+
+```dart
+Text(
+  'Product Name',
+  style: Theme.of(context).textTheme.bodyLarge,
+)
+
+Text(
+  'App Title',
+  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+    fontWeight: FontWeight.bold,
+  ),
+)
+```
+
+## Theme Configuration
+
+### Light Theme
+
+<ParamField path="lightTheme" type="ThemeData">
+  Complete Material 3 light theme configuration.
+  
+  ```dart
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      primaryColor: primaryColor,
+      scaffoldBackgroundColor: backgroundColor,
+      // ... more configuration
+    );
+  }
+  ```
+</ParamField>
+
+## Component Themes
+
+### AppBar Theme
+
+```dart
+appBarTheme: AppBarTheme(
+  backgroundColor: Colors.transparent,
+  elevation: 0,
+  centerTitle: true,
+  titleTextStyle: textTheme.titleLarge?.copyWith(
+    color: Colors.black,
+    fontWeight: FontWeight.bold,
+    fontSize: 18
+  ),
+  iconTheme: const IconThemeData(color: Colors.black),
+)
+```
+
+<ResponseField name="backgroundColor" type="Color">
+  Transparent to blend with scaffold background
+</ResponseField>
+
+<ResponseField name="elevation" type="double">
+  0 for flat design
+</ResponseField>
+
+<ResponseField name="centerTitle" type="bool">
+  Centers the app bar title
+</ResponseField>
+
+### Card Theme
+
+```dart
+cardTheme: CardThemeData(
+  elevation: 4,
+  shadowColor: Colors.black.withValues(alpha: 0.1),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  color: surfaceColor,
+)
+```
+
+<ResponseField name="elevation" type="double">
+  4dp elevation for subtle depth
+</ResponseField>
+
+<ResponseField name="borderRadius" type="double">
+  16px rounded corners for modern look
+</ResponseField>
+
+### Input Decoration Theme
+
+```dart
+inputDecorationTheme: InputDecorationTheme(
+  filled: true,
+  fillColor: Colors.white,
+  hintStyle: TextStyle(
+    color: Colors.grey[400],
+    fontWeight: FontWeight.normal,
+    fontSize: 13
+  ),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: Colors.grey[300]!),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: primaryColor, width: 2),
+  ),
+  errorBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: errorColor, width: 2),
+  ),
+  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+)
+```
+
+<ResponseField name="borderRadius" type="double">
+  12px rounded corners for input fields
+</ResponseField>
+
+<ResponseField name="focusedBorder" type="BorderSide">
+  2px primary color border when focused
+</ResponseField>
+
+<ResponseField name="contentPadding" type="EdgeInsets">
+  16px horizontal and vertical padding
+</ResponseField>
+
+### Elevated Button Theme
+
+```dart
+elevatedButtonTheme: ElevatedButtonThemeData(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: primaryColor,
+    foregroundColor: Colors.white,
+    elevation: 4,
+    shadowColor: primaryColor.withValues(alpha: 0.4),
+    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+  ),
+)
+```
+
+<ResponseField name="backgroundColor" type="Color">
+  Primary color for button background
+</ResponseField>
+
+<ResponseField name="foregroundColor" type="Color">
+  White text color
+</ResponseField>
+
+<ResponseField name="padding" type="EdgeInsets">
+  16px vertical, 24px horizontal
+</ResponseField>
+
+### Bottom Sheet Theme
+
+```dart
+bottomSheetTheme: const BottomSheetThemeData(
+  backgroundColor: Colors.transparent,
+)
+```
+
+<ResponseField name="backgroundColor" type="Color">
+  Transparent to allow custom backgrounds
+</ResponseField>
+
+## Accessing Theme Values
+
+### In Widgets
+
+```dart
+// Get primary color
+final primaryColor = Theme.of(context).primaryColor;
+
+// Get color scheme
+final colorScheme = Theme.of(context).colorScheme;
+final primary = colorScheme.primary;
+final secondary = colorScheme.secondary;
+
+// Get text theme
+final textTheme = Theme.of(context).textTheme;
+```
+
+### Direct Access
+
+```dart
+import 'package:flutter_billing_app/core/theme/app_theme.dart';
+
+// Use color constants directly
+Container(
+  color: AppTheme.primaryColor,
+  child: Text('Hello'),
+)
+```
+
+## Source Code
+
+Location: `lib/core/theme/app_theme.dart`

@@ -1,0 +1,389 @@
+---
+title: Contributing Guide
+description: Development workflow and guidelines for contributing to the Flutter Billing App
+---
+
+This guide explains the development workflow, coding standards, and best practices for contributing to the Flutter Billing App.
+
+## Development Setup
+
+### Prerequisites
+
+- Flutter SDK 3.1.0 or higher
+- Dart SDK (included with Flutter)
+- Android Studio / VS Code with Flutter extensions
+- Git for version control
+
+### Initial Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd billing_app
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Generate code:**
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   ```
+
+4. **Run the app:**
+   ```bash
+   flutter run
+   ```
+
+## Architecture Guidelines
+
+The app follows **Clean Architecture** principles. All features must adhere to this structure.
+
+### Layer Responsibilities
+
+<Accordion title="Domain Layer (Business Logic)">
+
+**Location:** `lib/features/{feature}/domain/`
+
+**Contains:**
+- **Entities**: Pure Dart classes with business logic
+- **Repositories**: Abstract interfaces (contracts)
+- **Use Cases**: Single-responsibility business operations
+
+**Rules:**
+- No dependencies on other layers
+- No Flutter/UI imports
+- No external package dependencies (except fpdart for functional types)
+- All use cases return `Either<Failure, Result>`
+
+**Example Use Case:**
+```dart
+class AddProductUseCase implements UseCase<void, Product> {
+  final ProductRepository repository;
+
+  AddProductUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, void>> call(Product params) {
+    return repository.addProduct(params);
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="Data Layer (Data Sources)">
+
+**Location:** `lib/features/{feature}/data/`
+
+**Contains:**
+- **Models**: Data classes with serialization (extend domain entities)
+- **Repository Implementations**: Concrete implementations using Hive
+
+**Rules:**
+- Models extend domain entities
+- Use `@HiveType` and `@HiveField` annotations
+- Include `part 'model_name.g.dart';` directive
+- Implement `fromEntity()` and `toEntity()` converters
+
+**Example Model:**
+```dart
+import 'package:hive/hive.dart';
+import '../../domain/entities/product.dart';
+
+part 'product_model.g.dart';
+
+@HiveType(typeId: 0)
+class ProductModel extends Product {
+  @override
+  @HiveField(0)
+  final String id;
+  
+  // ... other fields
+
+  const ProductModel({required this.id, /* ... */})
+      : super(id: id, /* ... */);
+
+  factory ProductModel.fromEntity(Product product) {
+    return ProductModel(id: product.id, /* ... */);
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="Presentation Layer (UI)">
+
+**Location:** `lib/features/{feature}/presentation/`
+
+**Contains:**
+- **BLoC**: State management (bloc, event, state files)
+- **Pages**: UI screens and widgets
+
+**Rules:**
+- Only depends on domain layer
+- BLoC calls use cases to perform business logic
+- States and events extend `Equatable`
+- Pages use `BlocBuilder`, `BlocListener`, or `BlocConsumer`
+
+**Example BLoC:**
+```dart
+class ProductBloc extends Bloc<ProductEvent, ProductState> {
+  final GetProductsUseCase getProductsUseCase;
+  final AddProductUseCase addProductUseCase;
+
+  ProductBloc({
+    required this.getProductsUseCase,
+    required this.addProductUseCase,
+  }) : super(ProductInitial()) {
+    on<LoadProductsEvent>(_onLoadProducts);
+    on<AddProductEvent>(_onAddProduct);
+  }
+
+  Future<void> _onLoadProducts(
+    LoadProductsEvent event,
+    Emitter<ProductState> emit,
+  ) async {
+    emit(ProductLoading());
+    final result = await getProductsUseCase(NoParams());
+    result.fold(
+      (failure) => emit(ProductError(failure.message)),
+      (products) => emit(ProductLoaded(products)),
+    );
+  }
+}
+```
+
+</Accordion>
+
+## Adding a New Feature
+
+Follow these steps when adding a new feature module:
+
+### Step 1: Create Feature Structure
+
+```bash
+mkdir -p lib/features/{feature_name}/domain/entities
+mkdir -p lib/features/{feature_name}/domain/repositories
+mkdir -p lib/features/{feature_name}/domain/usecases
+mkdir -p lib/features/{feature_name}/data/models
+mkdir -p lib/features/{feature_name}/data/repositories
+mkdir -p lib/features/{feature_name}/presentation/bloc
+mkdir -p lib/features/{feature_name}/presentation/pages
+```
+
+### Step 2: Create Domain Layer
+
+1. Define entity in `domain/entities/`
+2. Create repository interface in `domain/repositories/`
+3. Implement use cases in `domain/usecases/`
+
+### Step 3: Create Data Layer
+
+1. Create Hive model in `data/models/` with annotations
+2. Run code generation: `dart run build_runner build --delete-conflicting-outputs`
+3. Implement repository in `data/repositories/`
+
+### Step 4: Create Presentation Layer
+
+1. Define events in `presentation/bloc/{feature}_event.dart`
+2. Define states in `presentation/bloc/{feature}_state.dart`
+3. Implement BLoC in `presentation/bloc/{feature}_bloc.dart`
+4. Create UI pages in `presentation/pages/`
+
+### Step 5: Register Dependencies
+
+Add to `lib/core/service_locator.dart`:
+
+```dart
+// BLoC
+sl.registerFactory(() => FeatureBloc(
+  useCase: sl(),
+));
+
+// Use Cases
+sl.registerLazySingleton(() => FeatureUseCase(sl()));
+
+// Repository
+sl.registerLazySingleton<FeatureRepository>(
+  () => FeatureRepositoryImpl(),
+);
+```
+
+### Step 6: Add Routes
+
+Update `lib/config/routes/app_routes.dart` with new routes.
+
+## Code Generation Workflow
+
+After modifying or creating models with annotations:
+
+```bash
+# One-time build
+dart run build_runner build --delete-conflicting-outputs
+
+# Watch mode (auto-regenerate on save)
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+See [Code Generation](/development/code-generation) for details.
+
+## Coding Standards
+
+### Naming Conventions
+
+- **Files**: `snake_case.dart`
+- **Classes**: `PascalCase`
+- **Variables/Functions**: `camelCase`
+- **Constants**: `camelCase` or `SCREAMING_SNAKE_CASE` for compile-time constants
+- **Private members**: Prefix with `_`
+
+### Code Style
+
+- Follow [Effective Dart](https://dart.dev/guides/language/effective-dart) guidelines
+- Use `flutter_lints` package (already configured)
+- Run `flutter analyze` before committing
+- Format code with `dart format .`
+
+### BLoC Naming
+
+- Events: `{Verb}{Feature}Event` (e.g., `LoadProductsEvent`, `AddProductEvent`)
+- States: `{Feature}{State}` (e.g., `ProductLoading`, `ProductLoaded`, `ProductError`)
+- BLoC: `{Feature}Bloc` (e.g., `ProductBloc`)
+
+## Error Handling
+
+Use functional error handling with `fpdart`:
+
+```dart
+// Use Case returns Either
+Future<Either<Failure, Result>> call(Params params) async {
+  try {
+    final result = await repository.getData();
+    return Right(result);
+  } catch (e) {
+    return Left(CacheFailure(e.toString()));
+  }
+}
+
+// BLoC handles Either
+final result = await useCase(params);
+result.fold(
+  (failure) => emit(ErrorState(failure.message)),
+  (data) => emit(SuccessState(data)),
+);
+```
+
+Failure types are defined in `lib/core/error/failure.dart`.
+
+## Testing Approach
+
+### Unit Tests
+
+Test use cases and business logic:
+
+```dart
+test('should add product successfully', () async {
+  // Arrange
+  final product = Product(/* ... */);
+  when(mockRepository.addProduct(product))
+      .thenAnswer((_) async => Right(null));
+
+  // Act
+  final result = await useCase(product);
+
+  // Assert
+  expect(result, Right(null));
+  verify(mockRepository.addProduct(product));
+});
+```
+
+### Widget Tests
+
+Test UI components in isolation.
+
+### Integration Tests
+
+Test complete user flows.
+
+## Git Workflow
+
+### Branch Naming
+
+- Feature: `feature/description`
+- Bug fix: `fix/description`
+- Hotfix: `hotfix/description`
+
+### Commit Messages
+
+Follow conventional commits:
+
+```
+type(scope): description
+
+Types:
+- feat: New feature
+- fix: Bug fix
+- refactor: Code refactoring
+- docs: Documentation changes
+- test: Adding tests
+- chore: Maintenance tasks
+```
+
+**Examples:**
+```
+feat(product): add barcode scanning functionality
+fix(billing): resolve cart calculation error
+refactor(core): improve service locator organization
+```
+
+### Pull Request Process
+
+1. Create feature branch from `main`
+2. Implement changes following architecture guidelines
+3. Run tests: `flutter test`
+4. Run analyzer: `flutter analyze`
+5. Format code: `dart format .`
+6. Create pull request with clear description
+7. Await code review
+
+## Code Review Checklist
+
+- [ ] Follows Clean Architecture structure
+- [ ] Use cases return `Either<Failure, Result>`
+- [ ] Models have proper Hive annotations
+- [ ] Code generation run successfully
+- [ ] Dependencies registered in service locator
+- [ ] BLoC properly handles states and events
+- [ ] No business logic in presentation layer
+- [ ] Error handling implemented
+- [ ] Code formatted and analyzed
+- [ ] Tests added/updated
+
+## Common Pitfalls to Avoid
+
+1. **Don't put business logic in BLoC** - Use use cases instead
+2. **Don't import Flutter in domain layer** - Keep it pure Dart
+3. **Don't forget code generation** - Run build_runner after model changes
+4. **Don't skip dependency registration** - Register in service locator
+5. **Don't ignore functional error handling** - Always use `Either`
+6. **Don't create God classes** - Keep classes single-responsibility
+7. **Don't hardcode values** - Use constants or configuration
+
+## Getting Help
+
+For questions or issues:
+
+1. Check existing documentation
+2. Review similar implementations in the codebase
+3. Ask in team communication channels
+4. Open an issue for bugs or feature requests
+
+## Resources
+
+- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- [BLoC Pattern](https://bloclibrary.dev/)
+- [Effective Dart](https://dart.dev/guides/language/effective-dart)
+- [Flutter Documentation](https://docs.flutter.dev/)

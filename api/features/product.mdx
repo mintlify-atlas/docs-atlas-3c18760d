@@ -1,0 +1,229 @@
+---
+title: 'Product Feature'
+description: 'API reference for product management functionality'
+icon: 'box'
+---
+
+The Product feature handles all product management operations including CRUD operations for products in the inventory.
+
+## ProductBloc
+
+The main BLoC that manages product state and handles product-related events.
+
+### Constructor
+
+```dart
+ProductBloc({
+  required GetProductsUseCase getProductsUseCase,
+  required AddProductUseCase addProductUseCase,
+  required UpdateProductUseCase updateProductUseCase,
+  required DeleteProductUseCase deleteProductUseCase,
+})
+```
+
+### Events
+
+#### LoadProducts
+
+Triggers loading of all products from the repository.
+
+```dart
+class LoadProducts extends ProductEvent {}
+```
+
+#### AddProduct
+
+Adds a new product to the inventory.
+
+```dart
+class AddProduct extends ProductEvent {
+  final Product product;
+  const AddProduct(this.product);
+}
+```
+
+#### UpdateProduct
+
+Updates an existing product in the inventory.
+
+```dart
+class UpdateProduct extends ProductEvent {
+  final Product product;
+  const UpdateProduct(this.product);
+}
+```
+
+#### DeleteProduct
+
+Deletes a product from the inventory by ID.
+
+```dart
+class DeleteProduct extends ProductEvent {
+  final String id;
+  const DeleteProduct(this.id);
+}
+```
+
+### States
+
+#### ProductState
+
+Represents the current state of product operations.
+
+```dart
+class ProductState extends Equatable {
+  final ProductStatus status;
+  final List<Product> products;
+  final String? message;
+
+  const ProductState({
+    this.status = ProductStatus.initial,
+    this.products = const [],
+    this.message,
+  });
+}
+```
+
+**Properties:**
+- `status` - Current operation status (initial, loading, loaded, error, success)
+- `products` - List of all products
+- `message` - Optional message for errors or success feedback
+
+**Status Values:**
+```dart
+enum ProductStatus { initial, loading, loaded, error, success }
+```
+
+## Product Entity
+
+Core domain entity representing a product.
+
+```dart
+class Product extends Equatable {
+  final String id;
+  final String name;
+  final String barcode;
+  final double price;
+  final int stock;
+
+  const Product({
+    required this.id,
+    required this.name,
+    required this.barcode,
+    required this.price,
+    this.stock = 0,
+  });
+}
+```
+
+**Properties:**
+- `id` - Unique identifier for the product
+- `name` - Product name
+- `barcode` - Product barcode for scanning
+- `price` - Product price
+- `stock` - Current stock quantity (defaults to 0)
+
+## ProductRepository
+
+Abstract repository interface defining product data operations.
+
+```dart
+abstract class ProductRepository {
+  Future<Either<Failure, List<Product>>> getProducts();
+  Future<Either<Failure, Product>> getProductByBarcode(String barcode);
+  Future<Either<Failure, void>> addProduct(Product product);
+  Future<Either<Failure, void>> updateProduct(Product product);
+  Future<Either<Failure, void>> deleteProduct(String id);
+}
+```
+
+**Methods:**
+- `getProducts()` - Retrieves all products
+- `getProductByBarcode(String barcode)` - Finds a product by barcode
+- `addProduct(Product product)` - Adds a new product
+- `updateProduct(Product product)` - Updates existing product
+- `deleteProduct(String id)` - Deletes a product by ID
+
+## Use Cases
+
+### GetProductsUseCase
+
+Retrieves all products from the repository.
+
+```dart
+class GetProductsUseCase implements UseCase<List<Product>, NoParams> {
+  final ProductRepository repository;
+
+  GetProductsUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, List<Product>>> call(NoParams params);
+}
+```
+
+### AddProductUseCase
+
+Adds a new product to the inventory.
+
+```dart
+class AddProductUseCase implements UseCase<void, Product> {
+  final ProductRepository repository;
+
+  AddProductUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, void>> call(Product params);
+}
+```
+
+### UpdateProductUseCase
+
+Updates an existing product.
+
+```dart
+class UpdateProductUseCase implements UseCase<void, Product> {
+  final ProductRepository repository;
+
+  UpdateProductUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, void>> call(Product params);
+}
+```
+
+### DeleteProductUseCase
+
+Deletes a product by ID.
+
+```dart
+class DeleteProductUseCase implements UseCase<void, String> {
+  final ProductRepository repository;
+
+  DeleteProductUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, void>> call(String params);
+}
+```
+
+### GetProductByBarcodeUseCase
+
+Finds a product by its barcode.
+
+```dart
+class GetProductByBarcodeUseCase implements UseCase<Product, String> {
+  final ProductRepository repository;
+
+  GetProductByBarcodeUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, Product>> call(String params);
+}
+```
+
+## Source Files
+
+- **BLoC**: `lib/features/product/presentation/bloc/`
+- **Entities**: `lib/features/product/domain/entities/product.dart`
+- **Repository**: `lib/features/product/domain/repositories/product_repository.dart`
+- **Use Cases**: `lib/features/product/domain/usecases/product_usecases.dart`

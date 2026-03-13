@@ -1,0 +1,306 @@
+---
+title: Code Generation
+description: How to use build_runner to generate code for Hive type adapters and JSON serialization
+---
+
+The Flutter Billing App uses code generation to automatically create boilerplate code for database models and JSON serialization. This page explains the code generation setup and workflow.
+
+## Overview
+
+The app uses **build_runner** to generate code for:
+
+1. **Hive type adapters** - For local database serialization (`.g.dart` files)
+2. **JSON serialization** - For API/JSON serialization (future-ready)
+
+## Code Generators
+
+<Accordion title="hive_generator">
+
+### Purpose
+Generates Hive type adapters for models that need to be stored in the Hive database.
+
+### Annotations Used
+- `@HiveType(typeId: n)` - Marks a class as a Hive model with a unique type ID
+- `@HiveField(n)` - Marks a field for Hive serialization with a field index
+
+### Example Model
+
+```dart
+import 'package:hive/hive.dart';
+import '../../domain/entities/product.dart';
+
+part 'product_model.g.dart'; // Generated file
+
+@HiveType(typeId: 0)
+class ProductModel extends Product {
+  @override
+  @HiveField(0)
+  final String id;
+  
+  @override
+  @HiveField(1)
+  final String name;
+  
+  @override
+  @HiveField(2)
+  final String barcode;
+  
+  @override
+  @HiveField(3)
+  final double price;
+  
+  @override
+  @HiveField(4)
+  final int stock;
+
+  const ProductModel({
+    required this.id,
+    required this.name,
+    required this.barcode,
+    required this.price,
+    required this.stock,
+  }) : super(
+         id: id,
+         name: name,
+         barcode: barcode,
+         price: price,
+         stock: stock,
+       );
+}
+```
+
+### Generated Output
+Creates `product_model.g.dart` with:
+- `ProductModelAdapter` class
+- `read()` and `write()` methods for serialization
+- Type registration code
+
+</Accordion>
+
+<Accordion title="json_serializable">
+
+### Purpose
+Generates `fromJson()` and `toJson()` methods for JSON serialization.
+
+### Annotations Used
+- `@JsonSerializable()` - Marks a class for JSON code generation
+- `@JsonKey()` - Customizes field serialization (optional)
+
+### Example Usage
+
+```dart
+import 'package:json_annotation/json_annotation.dart';
+
+part 'example_model.g.dart';
+
+@JsonSerializable()
+class ExampleModel {
+  final String id;
+  final String name;
+  
+  @JsonKey(name: 'created_at')
+  final DateTime createdAt;
+
+  ExampleModel({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+  });
+
+  factory ExampleModel.fromJson(Map<String, dynamic> json) =>
+      _$ExampleModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ExampleModelToJson(this);
+}
+```
+
+### Generated Output
+Creates methods:
+- `_$ExampleModelFromJson(Map<String, dynamic> json)` - Deserializes JSON
+- `_$ExampleModelToJson(ExampleModel instance)` - Serializes to JSON
+
+</Accordion>
+
+## Running Code Generation
+
+### Basic Command
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+**What this does:**
+- Scans all files for code generation annotations
+- Generates `.g.dart` files next to annotated models
+- `--delete-conflicting-outputs` flag removes old generated files before creating new ones
+
+### Watch Mode (Development)
+
+For continuous development, use watch mode:
+
+```bash
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+**Benefits:**
+- Automatically regenerates code when you save files
+- No need to manually run build command repeatedly
+- Ideal during active development
+
+### Clean Generated Files
+
+To remove all generated files:
+
+```bash
+dart run build_runner clean
+```
+
+## Generated Files
+
+### Current Generated Files
+
+The app currently has these generated files:
+
+```
+lib/features/product/data/models/product_model.g.dart
+lib/features/shop/data/models/shop_model.g.dart
+```
+
+### File Naming Convention
+
+- Source file: `model_name.dart`
+- Generated file: `model_name.g.dart`
+- Always use `part 'model_name.g.dart';` directive in source file
+
+## When to Run Code Generation
+
+Run `build_runner` when:
+
+1. **Adding a new Hive model** - After creating a model with `@HiveType` annotations
+2. **Modifying model fields** - After adding/removing/renaming fields in annotated models
+3. **After cloning the repository** - Generated files are typically gitignored
+4. **Build errors about missing `.g.dart` files** - Indicates code generation is needed
+
+## Integration in Development Workflow
+
+<Accordion title="Adding a New Hive Model">
+
+### Step 1: Create the Model
+
+```dart
+// lib/features/example/data/models/example_model.dart
+import 'package:hive/hive.dart';
+
+part 'example_model.g.dart';
+
+@HiveType(typeId: 2) // Use a unique typeId
+class ExampleModel {
+  @HiveField(0)
+  final String id;
+  
+  @HiveField(1)
+  final String name;
+
+  ExampleModel({required this.id, required this.name});
+}
+```
+
+### Step 2: Run Code Generation
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### Step 3: Register the Adapter
+
+In your database initialization:
+
+```dart
+Hive.registerAdapter(ExampleModelAdapter());
+```
+
+### Step 4: Use the Model
+
+```dart
+final box = await Hive.openBox<ExampleModel>('examples');
+box.put('key', ExampleModel(id: '1', name: 'Test'));
+```
+
+</Accordion>
+
+<Accordion title="Troubleshooting">
+
+### Error: "part directive doesn't exist"
+
+**Cause:** The `.g.dart` file hasn't been generated.
+
+**Solution:**
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### Error: "Conflicting outputs"
+
+**Cause:** Old generated files conflict with new generation.
+
+**Solution:** Use the `--delete-conflicting-outputs` flag (already in recommended command).
+
+### Error: "typeId already registered"
+
+**Cause:** Two Hive models use the same `typeId`.
+
+**Solution:** Ensure each `@HiveType(typeId: n)` has a unique integer ID.
+
+### Generated Files Out of Date
+
+**Symptoms:**
+- Build errors after modifying model fields
+- Missing fields in serialization
+
+**Solution:**
+```bash
+dart run build_runner clean
+dart run build_runner build --delete-conflicting-outputs
+```
+
+</Accordion>
+
+## Build Configuration
+
+### build.yaml (Optional)
+
+You can create a `build.yaml` file in the project root to customize build_runner behavior:
+
+```yaml
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          # Generate nullable fields
+          nullable: true
+          # Generate helper methods
+          any_map: false
+          checked: true
+```
+
+Currently, the app uses default settings.
+
+## Best Practices
+
+1. **Always use unique typeIds** - Hive requires unique type IDs for each model (0-255 range)
+2. **Don't modify `.g.dart` files** - They are auto-generated and will be overwritten
+3. **Commit generated files** - For team consistency (or gitignore them and document the requirement)
+4. **Use watch mode during active development** - Saves time on repeated builds
+5. **Run clean builds periodically** - Prevents stale generated code issues
+
+## CI/CD Integration
+
+If you add CI/CD pipelines, include:
+
+```bash
+# Before running tests or building
+dart run build_runner build --delete-conflicting-outputs
+```
+
+This ensures generated files are always up to date in automated builds.

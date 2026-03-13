@@ -1,0 +1,479 @@
+---
+title: Thermal Printing
+description: Bluetooth thermal printer integration with ESC/POS commands for receipt generation
+icon: 'print'
+---
+
+## Overview
+
+The Thermal Printing feature enables Bluetooth connectivity to thermal printers for generating professional receipts. It uses the `print_bluetooth_thermal` package with custom ESC/POS command formatting.
+
+## Architecture
+
+### PrinterHelper Singleton
+
+The `PrinterHelper` class manages all printer operations:
+
+```dart lib/core/utils/printer_helper.dart
+class PrinterHelper {
+  // Singleton pattern
+  static final PrinterHelper _instance = PrinterHelper._internal();
+  factory PrinterHelper() => _instance;
+  PrinterHelper._internal();
+
+  bool _isConnected = false;
+  bool get isConnected => _isConnected;
+}
+```
+
+<Note>
+The singleton pattern ensures only one printer connection exists throughout the app lifecycle.
+</Note>
+
+## ESC/POS Commands
+
+The app uses ESC/POS (Epson Standard Code for Point of Sale) commands for formatting:
+
+```dart lib/core/utils/printer_helper.dart
+class EscPos {
+  static const List<int> init = [0x1B, 0x40];
+  static const List<int> alignCenter = [0x1B, 0x61, 0x01];
+  static const List<int> alignLeft = [0x1B, 0x61, 0x00];
+  static const List<int> alignRight = [0x1B, 0x61, 0x02];
+  static const List<int> boldOn = [0x1B, 0x45, 0x01];
+  static const List<int> boldOff = [0x1B, 0x45, 0x00];
+  static const List<int> textNormal = [0x1D, 0x21, 0x00];
+  static const List<int> textLarge = [0x1D, 0x21, 0x11];
+  static const List<int> lineFeed = [0x0A];
+}
+```
+
+<CardGroup cols={3}>
+  <Card title="Text Alignment" icon="align-left">
+    Left, center, and right alignment for receipt sections
+  </Card>
+  <Card title="Text Formatting" icon="bold">
+    Bold and size control for emphasis
+  </Card>
+  <Card title="Control Commands" icon="terminal">
+    Init printer and line feeds
+  </Card>
+</CardGroup>
+
+## Bluetooth Permissions
+
+### Permission Handling
+
+```dart lib/core/utils/printer_helper.dart
+Future<bool> checkPermission() async {
+  // Request Bluetooth and Location permissions
+  // Android 12+ needs BLUETOOTH_SCAN, BLUETOOTH_CONNECT
+  // Older Android needs BLUETOOTH, BLUETOOTH_ADMIN, ACCESS_FINE_LOCATION
+
+  Map<Permission, PermissionStatus> statuses = await [
+    Permission.bluetooth,
+    Permission.bluetoothScan,
+    Permission.bluetoothConnect,
+    Permission.location,
+  ].request();
+
+  return statuses.values.every((status) => status.isGranted);
+}
+```
+
+<Warning>
+Android 12+ requires different Bluetooth permissions than older versions. The app requests all necessary permissions for compatibility.
+</Warning>
+
+## Device Discovery
+
+### Getting Paired Devices
+
+```dart lib/core/utils/printer_helper.dart
+Future<List<BluetoothInfo>> getBondedDevices() async {
+  try {
+    final List<BluetoothInfo> list =
+        await PrintBluetoothThermal.pairedBluetooths;
+    return list;
+  } catch (e) {
+    return [];
+  }
+}
+```
+
+## Connection Management
+
+### Connecting to Printer
+
+```dart lib/core/utils/printer_helper.dart
+Future<bool> connect(String macAddress) async {
+  try {
+    final bool result =
+        await PrintBluetoothThermal.connect(macPrinterAddress: macAddress);
+    _isConnected = result;
+    return result;
+  } catch (e) {
+    _isConnected = false;
+    return false;
+  }
+}
+```
+
+### Disconnecting
+
+```dart lib/core/utils/printer_helper.dart
+Future<bool> disconnect() async {
+  try {
+    final bool result = await PrintBluetoothThermal.disconnect;
+    _isConnected = !result;
+    return result;
+  } catch (e) {
+    return false;
+  }
+}
+```
+
+## Receipt Generation
+
+### Print Receipt Method
+
+The `printReceipt` method generates a complete receipt with proper formatting:
+
+```dart lib/core/utils/printer_helper.dart
+Future<void> printReceipt({
+  required String shopName,
+  required String address1,
+  required String address2,
+  required String phone,
+  required List<Map<String, dynamic>> items,
+  required double total,
+  required String footer,
+}) async {
+  if (!_isConnected) return;
+
+  List<int> bytes = [];
+
+  // Init
+  bytes += EscPos.init;
+
+  // Shop Name (Center, Bold, Large)
+  bytes += EscPos.alignCenter;
+  bytes += EscPos.boldOn;
+  bytes += EscPos.textLarge;
+  bytes += _textToBytes(shopName);
+  bytes += EscPos.lineFeed;
+
+  // Address & Phone (Normal, Center)
+  bytes += EscPos.textNormal;
+  bytes += EscPos.boldOff;
+  if (address1.isNotEmpty) {
+    bytes += _textToBytes(address1);
+    bytes += EscPos.lineFeed;
+  }
+  if (address2.isNotEmpty) {
+    bytes += _textToBytes(address2);
+    bytes += EscPos.lineFeed;
+  }
+  bytes += _textToBytes(phone);
+  bytes += EscPos.lineFeed;
+
+  // Date and Time
+  String formattedDate =
+      DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
+  bytes += _textToBytes(formattedDate);
+  bytes += EscPos.lineFeed;
+
+  bytes += _textToBytes('--------------------------------');
+  bytes += EscPos.lineFeed;
+
+  // Header (Align Left)
+  bytes += EscPos.alignLeft;
+  bytes += _textToBytes('Item            Price   Total');
+  bytes += EscPos.lineFeed;
+  bytes += _textToBytes('--------------------------------');
+  bytes += EscPos.lineFeed;
+
+  // Items
+  for (var item in items) {
+    String name = item['name'].toString();
+    String qty = item['qty'].toString();
+    String price = item['price'].toString();
+    String totalItem = item['total'].toString();
+
+    String prefix = '${qty}x $name';
+    if (prefix.length > 16) prefix = prefix.substring(0, 16);
+
+    String line = prefix.padRight(16) + price.padRight(8) + totalItem;
+    bytes += _textToBytes(line);
+    bytes += EscPos.lineFeed;
+  }
+
+  bytes += _textToBytes('--------------------------------');
+  bytes += EscPos.lineFeed;
+
+  // Total (Align Right)
+  bytes += EscPos.alignRight;
+  bytes += EscPos.boldOn;
+  bytes += _textToBytes('TOTAL: $total');
+  bytes += EscPos.lineFeed;
+  bytes += EscPos.boldOff;
+  bytes += EscPos.lineFeed;
+
+  // Footer (Center)
+  bytes += EscPos.alignCenter;
+  bytes += _textToBytes(footer);
+  bytes += EscPos.lineFeed;
+  bytes += EscPos.lineFeed;
+  bytes += EscPos.lineFeed;
+  bytes += EscPos.lineFeed;
+
+  await PrintBluetoothThermal.writeBytes(bytes);
+}
+```
+
+### Text Encoding
+
+```dart lib/core/utils/printer_helper.dart
+List<int> _textToBytes(String text) {
+  // Latin-1 encoding works for basic thermal printers
+  return List.from(text.codeUnits);
+}
+```
+
+<Note>
+Most thermal printers support Latin-1 (ISO-8859-1) encoding. For multi-language support, consider using UTF-8 encoding if your printer supports it.
+</Note>
+
+## Receipt Layout
+
+The generated receipt follows this structure:
+
+<Steps>
+  <Step title="Header Section">
+    Shop name (large, bold, centered)
+    Address lines (centered)
+    Phone number (centered)
+    Date and time (centered)
+  </Step>
+  
+  <Step title="Items Section">
+    Column headers (left-aligned)
+    Item rows with quantity, name, price, and total
+    Each item is properly formatted and aligned
+  </Step>
+  
+  <Step title="Total Section">
+    Grand total (right-aligned, bold)
+  </Step>
+  
+  <Step title="Footer Section">
+    Custom footer text (centered)
+    Extra line feeds for paper tear-off
+  </Step>
+</Steps>
+
+## PrinterBloc
+
+The `PrinterBloc` manages printer state in the UI:
+
+### Printer Events
+
+```dart lib/features/settings/presentation/bloc/printer_event.dart
+class InitPrinterEvent extends PrinterEvent {}
+
+class RefreshPrinterEvent extends PrinterEvent {}
+
+class ScanPrintersEvent extends PrinterEvent {}
+
+class ConnectPrinterEvent extends PrinterEvent {
+  final String mac;
+  final String name;
+
+  const ConnectPrinterEvent({required this.mac, required this.name});
+}
+
+class DisconnectPrinterEvent extends PrinterEvent {}
+
+class TestPrintEvent extends PrinterEvent {
+  final String shopName;
+
+  const TestPrintEvent(this.shopName);
+}
+```
+
+### Scanning for Printers
+
+```dart lib/features/settings/presentation/bloc/printer_bloc.dart
+Future<void> _onScan(
+    ScanPrintersEvent event, Emitter<PrinterState> emit) async {
+  emit(state.copyWith(status: PrinterStatus.scanning, clearError: true));
+  try {
+    final devices = await repository.scanDevices();
+    emit(state.copyWith(
+      status: PrinterStatus.scanSuccess,
+      devices: devices,
+    ));
+  } catch (e) {
+    emit(state.copyWith(
+      status: PrinterStatus.scanFailure,
+      errorMessage: e.toString(),
+    ));
+  }
+}
+```
+
+### Connecting to Printer
+
+```dart lib/features/settings/presentation/bloc/printer_bloc.dart
+Future<void> _onConnect(
+    ConnectPrinterEvent event, Emitter<PrinterState> emit) async {
+  emit(state.copyWith(status: PrinterStatus.connecting, clearError: true));
+  final success = await repository.connect(event.mac);
+  if (success) {
+    await repository.savePrinterData(event.mac, event.name);
+    emit(state.copyWith(
+      status: PrinterStatus.connected,
+      connectedMac: event.mac,
+      connectedName: event.name,
+    ));
+  } else {
+    emit(state.copyWith(
+      status: PrinterStatus.connectionFailure,
+      errorMessage: 'Failed to connect to printer',
+    ));
+  }
+}
+```
+
+### Auto-reconnect Feature
+
+```dart lib/features/settings/presentation/bloc/printer_bloc.dart
+Future<void> _onRefresh(
+    RefreshPrinterEvent event, Emitter<PrinterState> emit) async {
+  emit(state.copyWith(status: PrinterStatus.scanning, clearError: true));
+  try {
+    final devices = await repository.scanDevices();
+    if (devices.isEmpty) {
+      emit(state.copyWith(
+        status: PrinterStatus.scanFailure,
+        errorMessage: 'No paired devices found.',
+        devices: [],
+      ));
+      return;
+    }
+
+    bool connected = false;
+    for (var device in devices) {
+      final success = await repository.connect(device.macAdress);
+      if (success) {
+        await repository.savePrinterData(device.macAdress, device.name);
+        emit(state.copyWith(
+          status: PrinterStatus.connected,
+          connectedMac: device.macAdress,
+          connectedName: device.name,
+          devices: devices,
+          clearError: true,
+        ));
+        connected = true;
+        break;
+      }
+    }
+
+    if (!connected) {
+      emit(state.copyWith(
+        status: PrinterStatus.scanFailure,
+        errorMessage: 'Could not connect to any paired device.',
+        devices: devices,
+      ));
+    }
+  } catch (e) {
+    emit(state.copyWith(
+      status: PrinterStatus.scanFailure,
+      errorMessage: e.toString(),
+    ));
+  }
+}
+```
+
+<Note>
+The refresh feature attempts to connect to the first available paired printer, making setup easier for users.
+</Note>
+
+## Persistent Storage
+
+The app saves printer connection details using Hive:
+
+```dart
+final savedMac = HiveDatabase.settingsBox.get('printer_mac');
+```
+
+This enables automatic reconnection when the app restarts.
+
+## Implementation Example
+
+```dart
+// Scan for printers
+context.read<PrinterBloc>().add(ScanPrintersEvent());
+
+// Connect to specific printer
+context.read<PrinterBloc>().add(
+  ConnectPrinterEvent(mac: 'AA:BB:CC:DD:EE:FF', name: 'My Printer')
+);
+
+// Test print
+context.read<PrinterBloc>().add(TestPrintEvent('My Shop'));
+
+// Disconnect
+context.read<PrinterBloc>().add(DisconnectPrinterEvent());
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection Fails">
+    - Ensure Bluetooth is enabled on the device
+    - Check that the printer is paired in system settings
+    - Verify all required permissions are granted
+    - Try turning the printer off and on
+  </Accordion>
+  
+  <Accordion title="Garbled Text">
+    - Check text encoding (most printers use Latin-1)
+    - Verify printer supports the character set
+    - Ensure proper ESC/POS command sequence
+  </Accordion>
+  
+  <Accordion title="Incomplete Receipts">
+    - Check printer paper level
+    - Verify printer battery (for portable printers)
+    - Ensure Bluetooth connection is stable
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Save Connection" icon="floppy-disk">
+    Always save the MAC address for automatic reconnection
+  </Card>
+  <Card title="Check Connection" icon="link">
+    Verify connection status before printing
+  </Card>
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Provide clear error messages to users
+  </Card>
+  <Card title="Test Regularly" icon="flask">
+    Use test print feature to verify printer setup
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Billing & Checkout" icon="cash-register" href="/features/billing-checkout">
+    See how printing integrates with checkout
+  </Card>
+  <Card title="Shop Settings" icon="store" href="/features/shop-settings">
+    Configure shop details for receipts
+  </Card>
+</CardGroup>

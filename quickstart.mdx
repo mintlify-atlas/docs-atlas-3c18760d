@@ -1,80 +1,320 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get the Flutter Billing App up and running in minutes"
+icon: "rocket"
 ---
 
-## Get started in three steps
+This guide will walk you through setting up and running the Flutter Billing App on your local machine.
 
-Get your documentation site running locally and make your first customization.
+## Quick Launch
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the Flutter Billing App repository to your local machine:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    git clone https://github.com/Dinesh-Sowndar/flutter_billing_app.git
+    cd flutter_billing_app
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  <Step title="Install Dependencies">
+    Fetch all required Flutter packages:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
+    ```bash
+    flutter pub get
+    ```
+    
+    This will install all dependencies specified in `pubspec.yaml`, including:
+    - `flutter_bloc` for state management
+    - `hive` and `hive_flutter` for local database
+    - `mobile_scanner` for barcode scanning
+    - `print_bluetooth_thermal` for thermal printing
+  </Step>
+
+  <Step title="Generate Code">
+    Run code generation for Hive adapters and JSON serialization:
+    
+    ```bash
+    dart run build_runner build --delete-conflicting-outputs
+    ```
+    
+    This generates the `.g.dart` files required for:
+    - Hive type adapters (`ProductModel`, `ShopModel`)
+    - JSON serialization for data models
+  </Step>
+
+  <Step title="Run the App">
+    Launch the app on your connected device or emulator:
+    
+    ```bash
+    flutter run
+    ```
+    
+    <Note>
+    For the best experience testing barcode scanning and Bluetooth printing, use a physical Android or iOS device.
+    </Note>
+  </Step>
+</Steps>
+
+## Understanding the Initialization
+
+When the app starts, it performs several initialization steps in `main.dart`:
+
+```dart lib/main.dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await HiveDatabase.init();
+  await di.init();
+  runApp(const MyApp());
+}
+```
+
+### Initialization Breakdown
+
+<Accordion title="1. HiveDatabase.init()">
+Initializes the Hive local database:
+
+```dart lib/core/data/hive_database.dart
+static Future<void> init() async {
+  await Hive.initFlutter();
+  
+  // Register type adapters
+  Hive.registerAdapter(ProductModelAdapter());
+  Hive.registerAdapter(ShopModelAdapter());
+  
+  // Open boxes
+  await Hive.openBox<ProductModel>('products');
+  await Hive.openBox<ShopModel>('shop');
+  await Hive.openBox('settings');
+}
+```
+
+This sets up three Hive boxes:
+- **products**: Stores all inventory items
+- **shop**: Stores shop configuration (name, address, UPI ID)
+- **settings**: Stores app settings (printer preferences, etc.)
 </Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<Accordion title="2. di.init()">
+Configures dependency injection with GetIt:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+```dart lib/core/service_locator.dart
+Future<void> init() async {
+  // Register BLoCs as factories
+  sl.registerFactory(() => ProductBloc(
+    getProductsUseCase: sl(),
+    addProductUseCase: sl(),
+    updateProductUseCase: sl(),
+    deleteProductUseCase: sl(),
+  ));
+  
+  // Register use cases as lazy singletons
+  sl.registerLazySingleton(() => GetProductsUseCase(sl()));
+  sl.registerLazySingleton(() => AddProductUseCase(sl()));
+  
+  // Register repositories
+  sl.registerLazySingleton<ProductRepository>(
+    () => ProductRepositoryImpl(),
+  );
+}
+```
 
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
+This registers all the BLoCs, use cases, and repositories needed for Clean Architecture.
 </Accordion>
 
-## Next steps
+<Accordion title="3. MultiBlocProvider Setup">
+Provides BLoCs to the widget tree:
 
-Now that you have your docs running, explore these key features:
+```dart lib/main.dart
+MultiBlocProvider(
+  providers: [
+    BlocProvider<ProductBloc>(
+      create: (context) => di.sl<ProductBloc>()..add(LoadProducts())
+    ),
+    BlocProvider<ShopBloc>(
+      create: (context) => di.sl<ShopBloc>()..add(LoadShopEvent())
+    ),
+    BlocProvider<BillingBloc>(
+      create: (context) => BillingBloc(getProductByBarcodeUseCase: di.sl())
+    ),
+    BlocProvider<PrinterBloc>(
+      create: (context) => di.sl<PrinterBloc>()..add(InitPrinterEvent())
+    ),
+  ],
+  child: MaterialApp.router(...)
+)
+```
+
+Each BLoC is created and immediately dispatches its initial load event.
+</Accordion>
+
+## First Run Experience
+
+When you first launch the app:
+
+1. **Home Screen**: You'll see the barcode scanner interface with an empty cart
+2. **Add Products**: Navigate to the Products tab to add items to your inventory
+3. **Scan Barcodes**: Use the camera to scan product barcodes for quick checkout
+4. **Configure Shop**: Set up your shop details in Settings for receipt printing
+
+## Common Tasks
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Add Products" icon="box" href="/features/product-management">
+    Learn how to add products to your inventory
+  </Card>
+  <Card title="Process a Sale" icon="cash-register" href="/features/billing-checkout">
+    Understand the checkout and billing flow
+  </Card>
+  <Card title="Connect Printer" icon="print" href="/features/thermal-printing">
+    Set up Bluetooth thermal printer integration
+  </Card>
+  <Card title="Configure Shop" icon="store" href="/features/shop-settings">
+    Customize your shop details and receipts
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Development Workflow
+
+### Hot Reload
+
+Flutter's hot reload makes development fast:
+
+```bash
+# Press 'r' in the terminal to hot reload
+# Press 'R' to hot restart (full restart)
+```
+
+### Debugging
+
+Enable debug mode for detailed logs:
+
+```bash
+flutter run --debug
+```
+
+### Code Generation Watch Mode
+
+For continuous code generation during development:
+
+```bash
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+This automatically regenerates `.g.dart` files when you modify model classes.
+
+## Testing on Physical Devices
+
+<Tabs>
+  <Tab title="Android">
+    1. Enable Developer Options on your Android device
+    2. Enable USB Debugging in Developer Options
+    3. Connect your device via USB
+    4. Run `flutter devices` to verify connection
+    5. Run `flutter run` to install and launch
+  </Tab>
+  
+  <Tab title="iOS">
+    1. Open `ios/Runner.xcworkspace` in Xcode
+    2. Select your connected iOS device
+    3. Configure signing with your Apple Developer account
+    4. Run `flutter run` or build from Xcode
+  </Tab>
+</Tabs>
+
+## Building for Production
+
+### Android APK/Bundle
+
+<CodeGroup>
+```bash APK (Direct Install)
+flutter build apk --release
+```
+
+```bash App Bundle (Play Store)
+flutter build appbundle --release
+```
+</CodeGroup>
+
+The build outputs will be in:
+- APK: `build/app/outputs/flutter-apk/app-release.apk`
+- Bundle: `build/app/outputs/bundle/release/app-release.aab`
+
+### iOS Archive
+
+```bash
+flutter build ios --release
+```
+
+Then open the project in Xcode to create an archive for the App Store.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Build Runner Fails">
+    If code generation fails, try cleaning first:
+    
+    ```bash
+    dart run build_runner clean
+    dart run build_runner build --delete-conflicting-outputs
+    ```
+  </Accordion>
+
+  <Accordion title="Hive Box Not Found">
+    Ensure you've run code generation and HiveDatabase.init() is called:
+    
+    ```bash
+    # Generate adapters
+    dart run build_runner build --delete-conflicting-outputs
+    
+    # Clear app data and reinstall
+    flutter clean
+    flutter pub get
+    flutter run
+    ```
+  </Accordion>
+
+  <Accordion title="Camera Permission Denied">
+    Add camera permissions to your manifest:
+    
+    **Android** (`android/app/src/main/AndroidManifest.xml`):
+    ```xml
+    <uses-permission android:name="android.permission.CAMERA"/>
+    ```
+    
+    **iOS** (`ios/Runner/Info.plist`):
+    ```xml
+    <key>NSCameraUsageDescription</key>
+    <string>This app needs camera access to scan barcodes</string>
+    ```
+  </Accordion>
+
+  <Accordion title="Bluetooth Permission Issues">
+    For Android 12+ (API level 31+), additional permissions are required:
+    
+    ```xml android/app/src/main/AndroidManifest.xml
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have the app running, explore these topics:
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="sitemap" href="/architecture/overview">
+    Understand the Clean Architecture structure
+  </Card>
+  <Card title="State Management" icon="diagram-project" href="/architecture/state-management">
+    Learn about the BLoC pattern implementation
+  </Card>
+  <Card title="Project Structure" icon="folder-tree" href="/development/project-structure">
+    Navigate the codebase organization
+  </Card>
+  <Card title="Contributing" icon="code-pull-request" href="/development/contributing">
+    Learn how to contribute to the project
+  </Card>
+</CardGroup>

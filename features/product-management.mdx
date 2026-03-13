@@ -1,0 +1,237 @@
+---
+title: Product Management
+description: Manage your inventory with full CRUD operations for products
+icon: 'box'
+---
+
+## Overview
+
+The Product Management feature provides a complete inventory system with Create, Read, Update, and Delete operations. Built using Clean Architecture principles, it separates business logic from presentation through the BLoC pattern.
+
+## Architecture
+
+### Product Entity
+
+The core `Product` entity represents a product in your inventory:
+
+```dart lib/features/product/domain/entities/product.dart
+class Product extends Equatable {
+  final String id;
+  final String name;
+  final String barcode;
+  final double price;
+  final int stock;
+
+  const Product({
+    required this.id,
+    required this.name,
+    required this.barcode,
+    required this.price,
+    this.stock = 0,
+  });
+
+  @override
+  List<Object?> get props => [id, name, barcode, price, stock];
+}
+```
+
+<Note>
+The product uses the barcode as a unique identifier for scanning, but maintains a separate ID field for database operations.
+</Note>
+
+### Use Cases
+
+The app follows Clean Architecture with dedicated use cases for each operation:
+
+<CardGroup cols={2}>
+  <Card title="GetProductsUseCase" icon="list">
+    Retrieves all products from the repository
+  </Card>
+  <Card title="AddProductUseCase" icon="plus">
+    Adds a new product to inventory
+  </Card>
+  <Card title="UpdateProductUseCase" icon="pen">
+    Updates existing product details
+  </Card>
+  <Card title="DeleteProductUseCase" icon="trash">
+    Removes a product from inventory
+  </Card>
+  <Card title="GetProductByBarcodeUseCase" icon="barcode">
+    Finds a product by scanning its barcode
+  </Card>
+</CardGroup>
+
+## ProductBloc Events
+
+The ProductBloc handles all product-related state management:
+
+```dart lib/features/product/presentation/bloc/product_event.dart
+abstract class ProductEvent extends Equatable {
+  const ProductEvent();
+}
+
+class LoadProducts extends ProductEvent {}
+
+class AddProduct extends ProductEvent {
+  final Product product;
+  const AddProduct(this.product);
+}
+
+class UpdateProduct extends ProductEvent {
+  final Product product;
+  const UpdateProduct(this.product);
+}
+
+class DeleteProduct extends ProductEvent {
+  final String id;
+  const DeleteProduct(this.id);
+}
+```
+
+## Event Handlers
+
+### Loading Products
+
+The bloc loads all products and emits appropriate states:
+
+```dart lib/features/product/presentation/bloc/product_bloc.dart
+Future<void> _onLoadProducts(
+    LoadProducts event, Emitter<ProductState> emit) async {
+  emit(state.copyWith(status: ProductStatus.loading));
+  final result = await getProductsUseCase(NoParams());
+  result.fold(
+    (failure) => emit(state.copyWith(
+        status: ProductStatus.error, message: failure.message)),
+    (products) => emit(
+        state.copyWith(status: ProductStatus.loaded, products: products)),
+  );
+}
+```
+
+### Adding Products
+
+```dart lib/features/product/presentation/bloc/product_bloc.dart
+Future<void> _onAddProduct(
+    AddProduct event, Emitter<ProductState> emit) async {
+  emit(state.copyWith(status: ProductStatus.loading));
+  final result = await addProductUseCase(event.product);
+  result.fold(
+    (failure) => emit(state.copyWith(
+        status: ProductStatus.error, message: failure.message)),
+    (_) {
+      emit(state.copyWith(
+          status: ProductStatus.success,
+          message: 'Product added successfully'));
+      add(LoadProducts());
+    },
+  );
+}
+```
+
+<Note>
+After successful add/update/delete operations, the bloc automatically reloads the product list to keep the UI in sync.
+</Note>
+
+### Updating Products
+
+```dart lib/features/product/presentation/bloc/product_bloc.dart
+Future<void> _onUpdateProduct(
+    UpdateProduct event, Emitter<ProductState> emit) async {
+  emit(state.copyWith(status: ProductStatus.loading));
+  final result = await updateProductUseCase(event.product);
+  result.fold(
+    (failure) => emit(state.copyWith(
+        status: ProductStatus.error, message: failure.message)),
+    (_) {
+      emit(state.copyWith(
+          status: ProductStatus.success,
+          message: 'Product updated successfully'));
+      add(LoadProducts());
+    },
+  );
+}
+```
+
+### Deleting Products
+
+```dart lib/features/product/presentation/bloc/product_bloc.dart
+Future<void> _onDeleteProduct(
+    DeleteProduct event, Emitter<ProductState> emit) async {
+  emit(state.copyWith(status: ProductStatus.loading));
+  final result = await deleteProductUseCase(event.id);
+  result.fold(
+    (failure) => emit(state.copyWith(
+        status: ProductStatus.error, message: failure.message)),
+    (_) {
+      emit(state.copyWith(
+          status: ProductStatus.success,
+          message: 'Product deleted successfully'));
+      add(LoadProducts());
+    },
+  );
+}
+```
+
+## Error Handling
+
+The app uses functional programming with the `fpdart` package for error handling:
+
+- All use cases return `Either<Failure, T>`
+- The left side contains errors (Failure)
+- The right side contains successful results
+- The bloc uses `fold()` to handle both cases
+
+## Implementation Example
+
+Here's how to use the ProductBloc in your UI:
+
+```dart
+// Load products
+context.read<ProductBloc>().add(LoadProducts());
+
+// Add a new product
+final newProduct = Product(
+  id: uuid.v4(),
+  name: 'Coffee',
+  barcode: '123456789',
+  price: 150.0,
+  stock: 50,
+);
+context.read<ProductBloc>().add(AddProduct(newProduct));
+
+// Update existing product
+context.read<ProductBloc>().add(UpdateProduct(updatedProduct));
+
+// Delete a product
+context.read<ProductBloc>().add(DeleteProduct(productId));
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Barcode as Unique Identifier">
+    While the Product has both `id` and `barcode` fields, the barcode should be unique for each product to enable seamless scanning.
+  </Accordion>
+  
+  <Accordion title="Handle Stock Levels">
+    The `stock` field is optional but useful for inventory tracking. Consider implementing low-stock alerts in your UI.
+  </Accordion>
+  
+  <Accordion title="Validate Product Data">
+    Always validate product data before adding or updating:
+    - Name should not be empty
+    - Price should be positive
+    - Barcode should be valid and unique
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Billing & Checkout" icon="cash-register" href="/features/billing-checkout">
+    Learn how products are used in the billing flow
+  </Card>
+  <Card title="Barcode Scanning" icon="barcode" href="/features/barcode-scanning">
+    See how to scan products with the camera
+  </Card>
+</CardGroup>

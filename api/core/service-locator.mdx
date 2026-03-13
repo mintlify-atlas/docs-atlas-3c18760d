@@ -1,0 +1,168 @@
+---
+title: 'Service Locator'
+description: 'Dependency injection setup using GetIt for the Flutter Billing App'
+---
+
+## Overview
+
+The Service Locator provides centralized dependency injection management using the [GetIt](https://pub.dev/packages/get_it) package. It registers all application dependencies including BLoCs, use cases, and repositories, making them accessible throughout the app.
+
+## Setup
+
+### Initialization
+
+Initialize the service locator before running the app:
+
+```dart
+import 'package:flutter_billing_app/core/service_locator.dart' as di;
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await di.init();
+  runApp(MyApp());
+}
+```
+
+### Global Instance
+
+<ParamField path="sl" type="GetIt">
+  The global GetIt instance used to access registered dependencies.
+  
+  ```dart
+  final sl = GetIt.instance;
+  ```
+</ParamField>
+
+## Registration Methods
+
+### registerFactory
+
+Registers a factory that creates a new instance every time it's called. Ideal for BLoCs and other stateful objects.
+
+```dart
+sl.registerFactory(
+  () => ProductBloc(
+    getProductsUseCase: sl(),
+    addProductUseCase: sl(),
+    updateProductUseCase: sl(),
+    deleteProductUseCase: sl(),
+  ),
+);
+```
+
+### registerLazySingleton
+
+Registers a singleton that's created only when first accessed. Perfect for use cases and repositories.
+
+```dart
+sl.registerLazySingleton(() => GetProductsUseCase(sl()));
+sl.registerLazySingleton<ProductRepository>(
+  () => ProductRepositoryImpl(),
+);
+```
+
+## Accessing Dependencies
+
+### Using sl()
+
+Access any registered dependency using the generic `sl<T>()` syntax:
+
+```dart
+// Get a ProductBloc instance
+final productBloc = sl<ProductBloc>();
+
+// Get a use case
+final getProductsUseCase = sl<GetProductsUseCase>();
+
+// Get a repository
+final productRepository = sl<ProductRepository>();
+```
+
+### In BLoC Providers
+
+```dart
+BlocProvider(
+  create: (_) => sl<ProductBloc>(),
+  child: ProductScreen(),
+)
+```
+
+## Registered Dependencies
+
+### BLoCs (Factory Registration)
+
+<ResponseField name="ProductBloc" type="Factory">
+  Manages product state and operations (get, add, update, delete products).
+</ResponseField>
+
+<ResponseField name="ShopBloc" type="Factory">
+  Manages shop information state and updates.
+</ResponseField>
+
+<ResponseField name="PrinterBloc" type="Factory">
+  Handles printer configuration and operations.
+</ResponseField>
+
+### Use Cases (Lazy Singleton)
+
+**Product Use Cases:**
+
+<ResponseField name="GetProductsUseCase" type="Lazy Singleton">
+  Retrieves all products from the local database.
+</ResponseField>
+
+<ResponseField name="AddProductUseCase" type="Lazy Singleton">
+  Adds a new product to the database.
+</ResponseField>
+
+<ResponseField name="UpdateProductUseCase" type="Lazy Singleton">
+  Updates an existing product.
+</ResponseField>
+
+<ResponseField name="DeleteProductUseCase" type="Lazy Singleton">
+  Deletes a product from the database.
+</ResponseField>
+
+<ResponseField name="GetProductByBarcodeUseCase" type="Lazy Singleton">
+  Searches for a product by its barcode.
+</ResponseField>
+
+**Shop Use Cases:**
+
+<ResponseField name="GetShopUseCase" type="Lazy Singleton">
+  Retrieves shop information.
+</ResponseField>
+
+<ResponseField name="UpdateShopUseCase" type="Lazy Singleton">
+  Updates shop details.
+</ResponseField>
+
+### Repositories (Lazy Singleton)
+
+<ResponseField name="ProductRepository" type="Lazy Singleton">
+  Implementation: `ProductRepositoryImpl` - Handles product data operations with Hive.
+</ResponseField>
+
+<ResponseField name="ShopRepository" type="Lazy Singleton">
+  Implementation: `ShopRepositoryImpl` - Manages shop data persistence.
+</ResponseField>
+
+<ResponseField name="PrinterRepository" type="Lazy Singleton">
+  Implementation: `PrinterRepositoryImpl` - Manages printer settings and operations.
+</ResponseField>
+
+## Architecture Pattern
+
+The service locator follows Clean Architecture principles:
+
+```
+BLoC → Use Case → Repository → Data Source (Hive)
+```
+
+- **BLoCs**: Presentation layer, registered as factories
+- **Use Cases**: Domain layer, registered as lazy singletons
+- **Repositories**: Data layer interfaces, registered as lazy singletons
+
+## Source Code
+
+Location: `lib/core/service_locator.dart`

@@ -1,0 +1,203 @@
+---
+title: Project Structure
+description: Detailed breakdown of the Flutter Billing App codebase organization and architecture
+---
+
+The Flutter Billing App follows Clean Architecture principles with a feature-based modular structure. This page provides a comprehensive overview of the project organization.
+
+## Directory Overview
+
+The main application code is organized under the `lib/` directory:
+
+```
+lib/
+├── config/              # Application configuration
+│   └── routes/          # Navigation and routing
+├── core/                # Shared core functionality
+│   ├── data/            # Core data layer (Hive database)
+│   ├── error/           # Error handling and failures
+│   ├── theme/           # App theming
+│   ├── usecase/         # Base use case abstractions
+│   ├── utils/           # Utility functions and helpers
+│   └── widgets/         # Reusable UI components
+├── features/            # Feature modules
+│   ├── billing/         # Billing and checkout feature
+│   ├── product/         # Product management feature
+│   ├── settings/        # App settings and printer configuration
+│   └── shop/            # Shop details management
+└── main.dart            # Application entry point
+```
+
+## Core Module
+
+The `core/` directory contains shared functionality used across all features.
+
+<Accordion title="Core Components">
+
+### Data Layer
+- **`core/data/hive_database.dart`**: Hive database initialization and configuration
+
+### Error Handling
+- **`core/error/failure.dart`**: Failure classes for error handling with functional programming
+
+### Dependency Injection
+- **`core/service_locator.dart`**: GetIt service locator configuration for dependency injection
+
+### Use Case Pattern
+- **`core/usecase/usecase.dart`**: Abstract base class for all use cases, returns `Either<Failure, Result>` using fpdart
+
+### Utilities
+- **`core/utils/app_validators.dart`**: Input validation helpers
+- **`core/utils/printer_helper.dart`**: Bluetooth thermal printer utilities
+
+### Shared Widgets
+- **`core/widgets/input_label.dart`**: Reusable input label component
+- **`core/widgets/primary_button.dart`**: Primary button component
+
+### Theme
+- **`core/theme/app_theme.dart`**: Material theme configuration
+
+</Accordion>
+
+## Configuration
+
+<Accordion title="App Configuration">
+
+### Routing
+- **`config/routes/app_routes.dart`**: GoRouter configuration for declarative navigation
+
+</Accordion>
+
+## Feature Modules
+
+Each feature follows Clean Architecture with three layers: **Domain**, **Data**, and **Presentation**.
+
+### Feature Structure Pattern
+
+Every feature module follows this consistent structure:
+
+```
+features/{feature_name}/
+├── data/
+│   ├── models/              # Data models with serialization
+│   └── repositories/        # Repository implementations
+├── domain/
+│   ├── entities/            # Business entities (plain Dart classes)
+│   ├── repositories/        # Repository interfaces
+│   └── usecases/            # Business logic use cases
+└── presentation/
+    ├── bloc/                # BLoC state management
+    └── pages/               # UI screens
+```
+
+<Accordion title="Product Feature">
+
+### Domain Layer
+- **`domain/entities/product.dart`**: Product entity (business object)
+- **`domain/repositories/product_repository.dart`**: Repository interface
+- **`domain/usecases/product_usecases.dart`**: Use cases:
+  - `GetProductsUseCase`
+  - `AddProductUseCase`
+  - `UpdateProductUseCase`
+  - `DeleteProductUseCase`
+  - `GetProductByBarcodeUseCase`
+
+### Data Layer
+- **`data/models/product_model.dart`**: Hive model with type adapters
+- **`data/models/product_model.g.dart`**: Generated Hive adapter code
+- **`data/repositories/product_repository_impl.dart`**: Repository implementation using Hive
+
+### Presentation Layer
+- **`presentation/bloc/`**: BLoC files (bloc, event, state)
+- **`presentation/pages/`**:
+  - `product_list_page.dart`: View all products
+  - `add_product_page.dart`: Add new product
+  - `edit_product_page.dart`: Edit existing product
+
+</Accordion>
+
+<Accordion title="Shop Feature">
+
+### Domain Layer
+- **`domain/entities/shop.dart`**: Shop entity
+- **`domain/repositories/shop_repository.dart`**: Repository interface
+- **`domain/usecases/shop_usecases.dart`**: Use cases:
+  - `GetShopUseCase`
+  - `UpdateShopUseCase`
+
+### Data Layer
+- **`data/models/shop_model.dart`**: Hive model for shop data
+- **`data/models/shop_model.g.dart`**: Generated Hive adapter
+- **`data/repositories/shop_repository_impl.dart`**: Repository implementation
+
+### Presentation Layer
+- **`presentation/bloc/`**: Shop BLoC for state management
+- **`presentation/pages/shop_details_page.dart`**: Shop information UI
+
+</Accordion>
+
+<Accordion title="Billing Feature">
+
+### Domain Layer
+- **`domain/entities/cart_item.dart`**: Cart item entity for billing
+
+### Presentation Layer
+- **`presentation/bloc/`**: Billing BLoC (bloc, event, state)
+- **`presentation/pages/`**:
+  - `home_page.dart`: Main billing interface
+  - `checkout_page.dart`: Checkout and payment
+  - `scanner_page.dart`: Barcode scanning for products
+
+</Accordion>
+
+<Accordion title="Settings Feature">
+
+### Domain Layer
+- **`domain/repositories/printer_repository.dart`**: Printer repository interface
+
+### Data Layer
+- **`data/repositories/printer_repository_impl.dart`**: Bluetooth printer implementation
+
+### Presentation Layer
+- **`presentation/bloc/`**: Printer BLoC for device management
+- **`presentation/pages/settings_page.dart`**: Settings UI
+
+</Accordion>
+
+## Clean Architecture Layers
+
+### Domain Layer (Business Logic)
+- **Entities**: Pure Dart classes representing business objects
+- **Repositories**: Abstract interfaces defining data operations
+- **Use Cases**: Single-responsibility business logic units
+- Returns `Either<Failure, Result>` for functional error handling
+
+### Data Layer (Data Sources)
+- **Models**: Extend entities, add serialization annotations
+- **Repository Implementations**: Concrete implementations using Hive
+- Uses code generation for Hive type adapters (`.g.dart` files)
+
+### Presentation Layer (UI)
+- **BLoC**: State management with flutter_bloc
+- **Pages**: UI screens and widgets
+- Depends only on domain layer (entities and use cases)
+
+## Dependency Flow
+
+```
+Presentation → Domain ← Data
+     ↓           ↓        ↓
+   BLoC    →  UseCase → Repository
+   Pages      Entities   Models
+```
+
+**Key Principle**: Dependencies point inward. The domain layer has no dependencies on outer layers.
+
+## Entry Point
+
+- **`main.dart`**: Application initialization
+  - Initializes Hive database
+  - Registers Hive type adapters
+  - Sets up dependency injection (GetIt)
+  - Configures app routing
+  - Runs the Flutter app

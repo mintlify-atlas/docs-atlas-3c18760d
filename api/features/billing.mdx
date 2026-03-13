@@ -1,0 +1,212 @@
+---
+title: 'Billing Feature'
+description: 'API reference for billing and cart management'
+icon: 'cart-shopping'
+---
+
+The Billing feature manages the shopping cart, barcode scanning, and checkout operations for the POS system.
+
+## BillingBloc
+
+The main BLoC that manages billing state and cart operations.
+
+### Constructor
+
+```dart
+BillingBloc({
+  required GetProductByBarcodeUseCase getProductByBarcodeUseCase,
+})
+```
+
+### Events
+
+#### ScanBarcodeEvent
+
+Scans a barcode and adds the corresponding product to the cart.
+
+```dart
+class ScanBarcodeEvent extends BillingEvent {
+  final String barcode;
+  const ScanBarcodeEvent(this.barcode);
+}
+```
+
+**Behavior**: Looks up the product by barcode and automatically adds it to the cart if found.
+
+#### AddProductToCartEvent
+
+Manually adds a product to the cart.
+
+```dart
+class AddProductToCartEvent extends BillingEvent {
+  final Product product;
+  const AddProductToCartEvent(this.product);
+}
+```
+
+**Behavior**: If product already exists in cart, increments quantity by 1. Otherwise adds new cart item.
+
+#### RemoveProductFromCartEvent
+
+Removes a product from the cart completely.
+
+```dart
+class RemoveProductFromCartEvent extends BillingEvent {
+  final String productId;
+  const RemoveProductFromCartEvent(this.productId);
+}
+```
+
+#### UpdateQuantityEvent
+
+Updates the quantity of a product in the cart.
+
+```dart
+class UpdateQuantityEvent extends BillingEvent {
+  final String productId;
+  final int quantity;
+  const UpdateQuantityEvent(this.productId, this.quantity);
+}
+```
+
+**Behavior**: If quantity is 0 or less, removes the item from cart.
+
+#### ClearCartEvent
+
+Clears all items from the cart.
+
+```dart
+class ClearCartEvent extends BillingEvent {}
+```
+
+#### PrintReceiptEvent
+
+Prints a receipt for the current cart.
+
+```dart
+class PrintReceiptEvent extends BillingEvent {
+  final String shopName;
+  final String address1;
+  final String address2;
+  final String phone;
+  final String footer;
+
+  const PrintReceiptEvent({
+    required this.shopName,
+    required this.address1,
+    required this.address2,
+    required this.phone,
+    required this.footer,
+  });
+}
+```
+
+**Behavior**: Attempts to connect to saved printer if not already connected, then prints receipt with shop details and cart items.
+
+### States
+
+#### BillingState
+
+Represents the current state of the billing cart.
+
+```dart
+class BillingState extends Equatable {
+  final List<CartItem> cartItems;
+  final String? error;
+  final bool isPrinting;
+  final bool printSuccess;
+
+  const BillingState({
+    this.cartItems = const [],
+    this.error,
+    this.isPrinting = false,
+    this.printSuccess = false,
+  });
+
+  double get totalAmount => cartItems.fold(0, (sum, item) => sum + item.total);
+}
+```
+
+**Properties:**
+- `cartItems` - List of items currently in the cart
+- `error` - Error message if any operation fails
+- `isPrinting` - Whether a print operation is in progress
+- `printSuccess` - Whether the last print was successful
+- `totalAmount` (getter) - Computed total amount for all cart items
+
+## CartItem Entity
+
+Represents a product in the shopping cart with quantity.
+
+```dart
+class CartItem extends Equatable {
+  final Product product;
+  final int quantity;
+
+  const CartItem({
+    required this.product,
+    this.quantity = 1,
+  });
+
+  double get total => product.price * quantity;
+
+  CartItem copyWith({
+    Product? product,
+    int? quantity,
+  });
+}
+```
+
+**Properties:**
+- `product` - The product in the cart
+- `quantity` - Number of units (defaults to 1)
+- `total` (getter) - Computed total price (price × quantity)
+
+**Methods:**
+- `copyWith()` - Creates a copy with updated fields
+
+## Usage Example
+
+### Adding Products by Barcode
+
+```dart
+// Scan a barcode
+billingBloc.add(ScanBarcodeEvent('1234567890'));
+```
+
+### Updating Cart Quantities
+
+```dart
+// Update quantity
+billingBloc.add(UpdateQuantityEvent('product-id', 5));
+
+// Remove from cart (quantity = 0)
+billingBloc.add(UpdateQuantityEvent('product-id', 0));
+```
+
+### Printing Receipt
+
+```dart
+billingBloc.add(PrintReceiptEvent(
+  shopName: 'My Store',
+  address1: '123 Main St',
+  address2: 'City, State 12345',
+  phone: '+1234567890',
+  footer: 'Thank you for shopping!',
+));
+```
+
+### Accessing Total Amount
+
+```dart
+BlocBuilder<BillingBloc, BillingState>(
+  builder: (context, state) {
+    return Text('Total: \$${state.totalAmount.toStringAsFixed(2)}');
+  },
+)
+```
+
+## Source Files
+
+- **BLoC**: `lib/features/billing/presentation/bloc/`
+- **Entities**: `lib/features/billing/domain/entities/cart_item.dart`
